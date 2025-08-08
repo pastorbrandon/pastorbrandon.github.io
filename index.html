@@ -29,22 +29,54 @@
       <div class="actions">
         <button id="btn-load-demo">Load Demo Build</button>
         <button id="btn-clear-build">Clear Build</button>
-        <button id="btn-check-gear">Check Gear (OCR – v0.2)</button>
+        <button id="btn-check-gear">Check New Gear</button>
       </div>
-      <!-- Camera panel -->
-<div id="cameraPanel" class="camera hidden">
-  <video id="camPreview" autoplay playsinline></video>
-  <canvas id="camCanvas" class="capture hidden"></canvas>
+      
+      <!-- Camera panel for gear analysis -->
+      <div id="cameraPanel" class="camera hidden">
+        <h3>📸 Analyze New Gear</h3>
+        <video id="camPreview" autoplay playsinline></video>
+        <canvas id="camCanvas" class="capture hidden"></canvas>
 
-  <div class="row">
-    <label for="camSlot">Save to slot:</label>
-    <select id="camSlot"></select>
+        <div class="row">
+          <button id="btn-capture">📷 Capture Gear</button>
+          <button id="btn-cancel-camera" class="ghost">❌ Cancel</button>
+        </div>
+      </div>
 
-    <button id="btn-capture">Capture</button>
-    <button id="btn-save-capture" disabled>Save to Slot</button>
-    <button id="btn-cancel-camera" class="ghost">Cancel</button>
-  </div>
-</div>
+      <!-- Gear Analysis Panel -->
+      <div id="gearAnalysisPanel" class="gear-analysis hidden">
+        <h3>🔍 Gear Analysis</h3>
+        <div class="gear-comparison">
+          <div class="current-gear">
+            <h4>Current Gear</h4>
+            <img id="currentGearImg" src="assets/placeholder.png" alt="Current gear">
+            <div id="currentGearInfo" class="gear-info">
+              <p class="gear-name">No gear equipped</p>
+              <p class="gear-status">Status: —</p>
+            </div>
+          </div>
+          
+          <div class="new-gear">
+            <h4>New Gear</h4>
+            <img id="newGearImg" src="assets/placeholder.png" alt="New gear">
+            <div id="newGearInfo" class="gear-info">
+              <p class="gear-name">Analyzing...</p>
+              <p class="gear-status">Status: —</p>
+            </div>
+          </div>
+        </div>
+        
+        <div class="gear-recommendation">
+          <h4>💡 Recommendation</h4>
+          <p id="recommendationText">Analyzing gear...</p>
+          <div class="recommendation-actions">
+            <button id="btn-equip" class="btn-primary" disabled>✅ Equip</button>
+            <button id="btn-store" class="btn-secondary" disabled>📦 Store</button>
+            <button id="btn-salvage" class="btn-danger" disabled>🗑️ Salvage</button>
+          </div>
+        </div>
+      </div>
 
       <div class="paper-doll">
         <div class="slot" data-slot="helm"><h3>Helm</h3><img src="assets/placeholder.png"><div class="status">—</div></div>
@@ -58,7 +90,7 @@
         <div class="slot" data-slot="weapon"><h3>Weapon</h3><img src="assets/placeholder.png"><div class="status">—</div></div>
         <div class="slot" data-slot="offhand"><h3>Off-hand</h3><img src="assets/placeholder.png"><div class="status">—</div></div>
       </div>
-      <p class="hint">Tap a slot to add/update a photo. Status colors: <span class="chip blue">Blue</span> BiS, <span class="chip green">Green</span> Keep & improve, <span class="chip yellow">Yellow</span> Viable, <span class="chip red">Red</span> Replace.</p>
+      <p class="hint">Tap a slot to add/update your equipped gear. Status colors: <span class="chip blue">Blue</span> BiS, <span class="chip green">Green</span> Keep & improve, <span class="chip yellow">Yellow</span> Viable, <span class="chip red">Red</span> Replace.</p>
     </section>
 
     <section id="affixes" class="tab">

@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#ff7b00">
+  <title>Horadric Companion</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header>
+    <h1>Horadric Companion</h1>
+    <p class="subtitle">Hydra Sorcerer Companion (v0.1)</p>
+  </header>
+
+  <nav id="tabs">
+    <button data-tab="gear" class="active">Gear</button>
+    <button data-tab="affixes">Affixes</button>
+    <button data-tab="tempering">Tempering</button>
+    <button data-tab="masterworking">Masterworking</button>
+    <button data-tab="skills">Skills</button>
+    <button data-tab="paragon">Paragon</button>
+    <button data-tab="notes">Notes</button>
+  </nav>
+
+  <main>
+    <section id="gear" class="tab active">
+      <div class="actions">
+        <button id="btn-load-demo">Load Demo Build</button>
+        <button id="btn-clear-build">Clear Build</button>
+        <button id="btn-check-gear">Check Gear (OCR – v0.2)</button>
+      </div>
+      <div class="paper-doll">
+        <div class="slot" data-slot="helm"><h3>Helm</h3><img src="assets/placeholder.png"><div class="status">—</div></div>
+        <div class="slot" data-slot="amulet"><h3>Amulet</h3><img src="assets/placeholder.png"><div class="status">—</div></div>
+        <div class="slot" data-slot="chest"><h3>Chest</h3><img src="assets/placeholder.png"><div class="status">—</div></div>
+        <div class="slot" data-slot="gloves"><h3>Gloves</h3><img src="assets/placeholder.png"><div class="status">—</div></div>
+        <div class="slot" data-slot="pants"><h3>Pants</h3><img src="assets/placeholder.png"><div class="status">—</div></div>
+        <div class="slot" data-slot="boots"><h3>Boots</h3><img src="assets/placeholder.png"><div class="status">—</div></div>
+        <div class="slot" data-slot="ring1"><h3>Ring 1</h3><img src="assets/placeholder.png"><div class="status">—</div></div>
+        <div class="slot" data-slot="ring2"><h3>Ring 2</h3><img src="assets/placeholder.png"><div class="status">—</div></div>
+        <div class="slot" data-slot="weapon"><h3>Weapon</h3><img src="assets/placeholder.png"><div class="status">—</div></div>
+        <div class="slot" data-slot="offhand"><h3>Off-hand</h3><img src="assets/placeholder.png"><div class="status">—</div></div>
+      </div>
+      <p class="hint">Tap a slot to add/update a photo. Status colors: <span class="chip blue">Blue</span> BiS, <span class="chip green">Green</span> Keep & improve, <span class="chip yellow">Yellow</span> Viable, <span class="chip red">Red</span> Replace.</p>
+    </section>
+
+    <section id="affixes" class="tab">
+      <h2>Affix Priorities</h2>
+      <pre id="affix-json"></pre>
+    </section>
+
+    <section id="tempering" class="tab">
+      <h2>Tempering</h2>
+      <pre id="tempering-json"></pre>
+    </section>
+
+    <section id="masterworking" class="tab">
+      <h2>Masterworking</h2>
+      <pre id="mw-json"></pre>
+    </section>
+
+    <section id="skills" class="tab">
+      <h2>Skill Tree (Summary)</h2>
+      <ul id="skills-list"></ul>
+    </section>
+
+    <section id="paragon" class="tab">
+      <h2>Paragon (Boards & Glyphs)</h2>
+      <ul id="paragon-list"></ul>
+    </section>
+
+    <section id="notes" class="tab">
+      <h2>Session Notes</h2>
+      <textarea id="notes-text" placeholder="Farm boots; target Evade CDR; reroll amulet..."></textarea>
+    </section>
+
+  </main>
+
+  <footer>
+    <small>Horadric Companion – PWA • Rules last updated: <span id="rules-date">—</span></small>
+  </footer>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

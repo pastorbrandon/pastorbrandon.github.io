@@ -1,0 +1,69 @@
+{
+  "buildName": "Hydra Sorcerer (S9)",
+  "sources": {
+    "primary": "Icy Veins",
+    "secondary": "Maxroll",
+    "updated": "2025-08-08"
+  },
+  "slots": {
+    "Helm": {
+      "bis": [
+        "Rare + Aspect (CDR + +Ranks to Hydra)"
+      ],
+      "mandatoryAffixes": [
+        "Cooldown Reduction",
+        "+Ranks to Hydra"
+      ],
+      "preferredAffixes": [
+        "Resource Generation",
+        "Life",
+        "Intelligence"
+      ],
+      "tempering": [
+        "Hydra Lucky Hit Chance",
+        "Cooldown Reduction (if available)"
+      ],
+      "enchantTargets": [
+        "Add CDR if missing",
+        "Add +Ranks to Hydra if possible"
+      ],
+      "aspects": [
+        "(placeholder)"
+      ],
+      "thresholds": {
+        "blue": 90,
+        "green": 70,
+        "yellow": 50
+      }
+    },
+    "Boots": {
+      "bis": [
+        "Yen's Blessing (if synergy) or Rare with Evade CDR + Move Speed"
+      ],
+      "mandatoryAffixes": [
+        "Evade Cooldown Reduction",
+        "Movement Speed"
+      ],
+      "preferredAffixes": [
+        "Mana per Second",
+        "Resource Generation",
+        "All Resist"
+      ],
+      "tempering": [
+        "Movement Speed",
+        "Resource Generation"
+      ],
+      "enchantTargets": [
+        "Swap low-value affix to Resource/Movespeed"
+      ],
+      "aspects": [
+        "(placeholder)"
+      ],
+      "thresholds": {
+        "blue": 90,
+        "green": 70,
+        "yellow": 50
+      }
+    }
+  }
+}

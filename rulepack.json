@@ -3,12 +3,14 @@
   "sources": {
     "primary": "Icy Veins",
     "secondary": "Maxroll",
-    "updated": "2025-08-08"
+    "updated": "2025-01-27"
   },
   "slots": {
     "Helm": {
       "bis": [
-        "Rare + Aspect (CDR + +Ranks to Hydra)"
+        "Harlequin Crest (Unique)",
+        "Crown of Lucion (Alternative)",
+        "Rare with CDR + +Ranks to Hydra"
       ],
       "mandatoryAffixes": [
         "Cooldown Reduction",
@@ -16,8 +18,9 @@
       ],
       "preferredAffixes": [
         "Resource Generation",
-        "Life",
-        "Intelligence"
+        "Maximum Life",
+        "Intelligence",
+        "All Resist"
       ],
       "tempering": [
         "Hydra Lucky Hit Chance",
@@ -28,7 +31,135 @@
         "Add +Ranks to Hydra if possible"
       ],
       "aspects": [
-        "(placeholder)"
+        "Snowveiled Aspect"
+      ],
+      "thresholds": {
+        "blue": 90,
+        "green": 70,
+        "yellow": 50
+      }
+    },
+    "Amulet": {
+      "bis": [
+        "Ophidian Iris (Unique - S9)",
+        "Rare with CDR + +Ranks to Hydra"
+      ],
+      "mandatoryAffixes": [
+        "Cooldown Reduction",
+        "+Ranks to Hydra"
+      ],
+      "preferredAffixes": [
+        "Movement Speed",
+        "Resource Generation",
+        "Maximum Life",
+        "Intelligence"
+      ],
+      "tempering": [
+        "Evade Cooldown Reduction",
+        "Movement Speed"
+      ],
+      "enchantTargets": [
+        "Add CDR if missing",
+        "Add +Ranks to Hydra if possible"
+      ],
+      "aspects": [
+        "Aspect of Shredding Blades"
+      ],
+      "thresholds": {
+        "blue": 90,
+        "green": 70,
+        "yellow": 50
+      }
+    },
+    "Chest": {
+      "bis": [
+        "Raiment of the Infinite (Unique)",
+        "Shroud of False Death (Unique)",
+        "Rare with Defensive + Resource"
+      ],
+      "mandatoryAffixes": [
+        "Maximum Life",
+        "Damage Reduction"
+      ],
+      "preferredAffixes": [
+        "Resource Generation",
+        "Mana per Second",
+        "All Resist",
+        "Intelligence"
+      ],
+      "tempering": [
+        "Resource Generation",
+        "Damage Reduction"
+      ],
+      "enchantTargets": [
+        "Add defensive stats if missing",
+        "Add resource generation if possible"
+      ],
+      "aspects": [
+        "Aspect of Concentration"
+      ],
+      "thresholds": {
+        "blue": 90,
+        "green": 70,
+        "yellow": 50
+      }
+    },
+    "Gloves": {
+      "bis": [
+        "Rare with Crit + Attack Speed"
+      ],
+      "mandatoryAffixes": [
+        "Critical Strike Chance",
+        "Attack Speed"
+      ],
+      "preferredAffixes": [
+        "Lucky Hit Chance to Restore Primary Resource",
+        "+Ranks to Hydra",
+        "Intelligence",
+        "All Resist"
+      ],
+      "tempering": [
+        "Attack Speed",
+        "Lucky Hit Chance to Restore Primary Resource"
+      ],
+      "enchantTargets": [
+        "Add Crit Chance if missing",
+        "Add Attack Speed if possible"
+      ],
+      "aspects": [
+        "Flash Fire Aspect"
+      ],
+      "thresholds": {
+        "blue": 90,
+        "green": 70,
+        "yellow": 50
+      }
+    },
+    "Pants": {
+      "bis": [
+        "Axial Conduit (Unique)",
+        "Rare with Defensive + Resource"
+      ],
+      "mandatoryAffixes": [
+        "Maximum Life",
+        "Resource Generation"
+      ],
+      "preferredAffixes": [
+        "Damage Reduction",
+        "Mana per Second",
+        "All Resist",
+        "Intelligence"
+      ],
+      "tempering": [
+        "Resource Generation",
+        "Maximum Life"
+      ],
+      "enchantTargets": [
+        "Add defensive stats if missing",
+        "Add resource generation if possible"
+      ],
+      "aspects": [
+        "Everliving Aspect"
       ],
       "thresholds": {
         "blue": 90,
@@ -38,7 +169,7 @@
     },
     "Boots": {
       "bis": [
-        "Yen's Blessing (if synergy) or Rare with Evade CDR + Move Speed"
+        "Rare with Evade CDR + Move Speed"
       ],
       "mandatoryAffixes": [
         "Evade Cooldown Reduction",
@@ -47,17 +178,147 @@
       "preferredAffixes": [
         "Mana per Second",
         "Resource Generation",
-        "All Resist"
+        "All Resist",
+        "Intelligence"
       ],
       "tempering": [
         "Movement Speed",
+        "Evade Cooldown Reduction"
+      ],
+      "enchantTargets": [
+        "Add Evade CDR if missing",
+        "Add Movement Speed if possible"
+      ],
+      "aspects": [
+        "Aspect of the Orange Herald"
+      ],
+      "thresholds": {
+        "blue": 90,
+        "green": 70,
+        "yellow": 50
+      }
+    },
+    "Ring1": {
+      "bis": [
+        "Tal Rasha's Iridescent Loop (Unique)",
+        "Rare with Crit + Resource"
+      ],
+      "mandatoryAffixes": [
+        "Critical Strike Chance",
+        "Lucky Hit Chance"
+      ],
+      "preferredAffixes": [
+        "Lucky Hit Chance to Restore Primary Resource",
+        "Resource Generation",
+        "Maximum Life",
+        "Intelligence"
+      ],
+      "tempering": [
+        "Lucky Hit Chance to Restore Primary Resource",
+        "Critical Strike Chance"
+      ],
+      "enchantTargets": [
+        "Add Crit Chance if missing",
+        "Add Lucky Hit if possible"
+      ],
+      "aspects": [
+        "Conceited Aspect"
+      ],
+      "thresholds": {
+        "blue": 90,
+        "green": 70,
+        "yellow": 50
+      }
+    },
+    "Ring2": {
+      "bis": [
+        "Ring of Starless Skies (Optional Unique)",
+        "Rare with Crit + Resource"
+      ],
+      "mandatoryAffixes": [
+        "Critical Strike Chance",
+        "Lucky Hit Chance"
+      ],
+      "preferredAffixes": [
+        "Lucky Hit Chance to Restore Primary Resource",
+        "Resource Generation",
+        "Maximum Life",
+        "Intelligence"
+      ],
+      "tempering": [
+        "Lucky Hit Chance to Restore Primary Resource",
+        "Critical Strike Chance"
+      ],
+      "enchantTargets": [
+        "Add Crit Chance if missing",
+        "Add Lucky Hit if possible"
+      ],
+      "aspects": [
+        "Battle Caster's Aspect"
+      ],
+      "thresholds": {
+        "blue": 90,
+        "green": 70,
+        "yellow": 50
+      }
+    },
+    "Weapon": {
+      "bis": [
+        "Staff (for higher damage)",
+        "One-Handed Weapon + Focus (for speed farming)"
+      ],
+      "mandatoryAffixes": [
+        "Damage to Close Enemies",
+        "Damage to Burning Enemies"
+      ],
+      "preferredAffixes": [
+        "Lucky Hit Chance to Restore Primary Resource",
+        "Intelligence",
+        "All Resist",
+        "Core Skill Damage"
+      ],
+      "tempering": [
+        "Lucky Hit Chance to Restore Primary Resource",
+        "Damage to Close Enemies"
+      ],
+      "enchantTargets": [
+        "Add damage affixes if missing",
+        "Add resource generation if possible"
+      ],
+      "aspects": [
+        "Serpentine Aspect"
+      ],
+      "thresholds": {
+        "blue": 90,
+        "green": 70,
+        "yellow": 50
+      }
+    },
+    "Offhand": {
+      "bis": [
+        "Focus (with One-Handed Weapon)",
+        "Staff (if using Staff setup)"
+      ],
+      "mandatoryAffixes": [
+        "Cooldown Reduction",
+        "Resource Generation"
+      ],
+      "preferredAffixes": [
+        "Lucky Hit Chance to Restore Primary Resource",
+        "Maximum Life",
+        "Intelligence",
+        "All Resist"
+      ],
+      "tempering": [
+        "Cooldown Reduction",
         "Resource Generation"
       ],
       "enchantTargets": [
-        "Swap low-value affix to Resource/Movespeed"
+        "Add CDR if missing",
+        "Add resource generation if possible"
       ],
       "aspects": [
-        "(placeholder)"
+        "Storm Swell Aspect"
       ],
       "thresholds": {
         "blue": 90,
@@ -65,5 +326,34 @@
         "yellow": 50
       }
     }
+  },
+  "buildNotes": {
+    "keyMechanics": [
+      "Serpentine Aspect consumes all Mana to increase Hydra damage",
+      "Ophidian Iris creates gigantic Hydras with exploding attacks",
+      "Tal Rasha's Iridescent Loop buffs from Ice Armor, Teleport, and Hydra",
+      "Axial Conduit provides boosted Resource Generation",
+      "Harlequin Crest enables 1.5s Evade Teleport breakpoint"
+    ],
+    "resourceManagement": [
+      "High Maximum Mana needed for Serpentine Aspect",
+      "Fast Mana recovery essential for repeated Hydra casts",
+      "Primordial Binding buffs Mana Regeneration (up to 10 stacks)",
+      "Lucky Hit Chance to Restore Primary Resource on Weapon and Gloves"
+    ],
+    "criticalStrike": [
+      "Easily caps at 100% Critical Strike Chance",
+      "Base 5% + 90% from Skill Tree and Paragon",
+      "Invoked Hydra: +20%",
+      "Esu's Ferocity: +40%",
+      "Conjurer: +15%",
+      "Searing Heat: +15%"
+    ],
+    "speedFarming": [
+      "Evade Teleport with 1.5s cooldown",
+      "Boots implicit: Attacks Reduce Evade's Cooldown by 1.5 Seconds",
+      "Temper Evade Cooldown Reduction on Boots and Amulet",
+      "Harlequin Crest required for 1.5s breakpoint"
+    ]
   }
 }

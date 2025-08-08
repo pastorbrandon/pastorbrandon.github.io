@@ -5,16 +5,27 @@ if ('serviceWorker' in navigator) {
   });
 }
 
+// Global error handler
+window.addEventListener('error', (event) => {
+  console.error('Global error:', event.error);
+});
+
+window.addEventListener('unhandledrejection', (event) => {
+  console.error('Unhandled promise rejection:', event.reason);
+});
+
 const $ = sel => document.querySelector(sel);
 const $$ = sel => Array.from(document.querySelectorAll(sel));
 
+// Initialize tabs
 $$('#tabs button').forEach(btn => {
   btn.addEventListener('click', () => {
     $$('#tabs button').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     const tab = btn.dataset.tab;
     $$('.tab').forEach(t => t.classList.remove('active'));
-    $('#' + tab).classList.add('active');
+    const targetTab = $('#' + tab);
+    if (targetTab) targetTab.classList.add('active');
   });
 });
 
@@ -25,53 +36,150 @@ function loadBuild() { try { return JSON.parse(localStorage.getItem(STORAGE_KEY)
 const SLOTS = ['helm','amulet','chest','gloves','pants','boots','ring1','ring2','weapon','offhand'];
 let build = loadBuild();
 
+// Add status indicator functionality
+function updateSlotStatus(slot, status) {
+  const slotEl = document.querySelector(`.slot[data-slot="${slot}"]`);
+  if (!slotEl) return;
+  
+  const statusEl = slotEl.querySelector('.status');
+  const indicator = slotEl.querySelector('.status-indicator') || createStatusIndicator(slotEl);
+  
+  if (!statusEl || !indicator) return;
+  
+  // Remove existing status classes
+  statusEl.className = 'status';
+  indicator.className = 'status-indicator';
+  
+  // Add new status
+  if (status) {
+    statusEl.textContent = status;
+    statusEl.classList.add(status.toLowerCase());
+    indicator.classList.add(status.toLowerCase());
+  } else {
+    statusEl.textContent = '—';
+    statusEl.classList.add('unscored');
+  }
+}
+
+function createStatusIndicator(slotEl) {
+  const indicator = document.createElement('div');
+  indicator.className = 'status-indicator';
+  slotEl.appendChild(indicator);
+  return indicator;
+}
+
+// Enhanced slot click with better UX
 SLOTS.forEach(slot => {
   const el = document.querySelector(`.slot[data-slot="${slot}"]`);
+  if (!el) return;
+  
   const img = el.querySelector('img');
   const status = el.querySelector('.status');
-  if (build[slot]?.image) img.src = build[slot].image;
-  if (build[slot]?.status) status.textContent = build[slot].status;
+  
+  if (build[slot]?.image && img) {
+    img.src = build[slot].image;
+    updateSlotStatus(slot, build[slot].status);
+  }
+  
   el.addEventListener('click', async () => {
+    // Add loading state
+    el.classList.add('loading');
+    
     const input = document.createElement('input');
-    input.type = 'file'; input.accept = 'image/*';
+    input.type = 'file'; 
+    input.accept = 'image/*';
+    
     input.onchange = async () => {
       const file = input.files[0];
-      if (!file) return;
+      if (!file) {
+        el.classList.remove('loading');
+        return;
+      }
+      
       const reader = new FileReader();
       reader.onload = () => {
-        img.src = reader.result;
+        if (img) img.src = reader.result;
         build[slot] = build[slot] || {};
         build[slot].image = reader.result;
         build[slot].status = 'Unscored';
+        updateSlotStatus(slot, 'Unscored');
         saveBuild(build);
+        el.classList.remove('loading');
+        
+        // Add success animation
+        el.style.transform = 'scale(1.05)';
+        setTimeout(() => {
+          el.style.transform = '';
+        }, 200);
       };
       reader.readAsDataURL(file);
     };
+    
     input.click();
   });
 });
 
-$('#btn-load-demo').addEventListener('click', async () => {
-  const resp = await fetch('rulepack.json');
-  const rules = await resp.json();
-  document.getElementById('rules-date').textContent = rules.sources.updated;
-  document.getElementById('affix-json').textContent = JSON.stringify(rules.slots, null, 2);
-  document.getElementById('tempering-json').textContent = JSON.stringify(rules.slots, null, 2);
-  document.getElementById('mw-json').textContent = 'Masterworking priorities TBD';
-  document.getElementById('skills-list').innerHTML = '<li>Hydra core; rest per Icy Veins</li>';
-  document.getElementById('paragon-list').innerHTML = '<li>Boards & glyphs TBD</li>';
-});
+// Enhanced demo load with progress
+const btnLoadDemo = $('#btn-load-demo');
+if (btnLoadDemo) {
+  btnLoadDemo.addEventListener('click', async () => {
+    btnLoadDemo.textContent = 'Loading...';
+    btnLoadDemo.disabled = true;
+    
+    try {
+      const resp = await fetch('rulepack.json');
+      const rules = await resp.json();
+      
+      const rulesDate = document.getElementById('rules-date');
+      const affixJson = document.getElementById('affix-json');
+      const temperingJson = document.getElementById('tempering-json');
+      const mwJson = document.getElementById('mw-json');
+      const skillsList = document.getElementById('skills-list');
+      const paragonList = document.getElementById('paragon-list');
+      
+      if (rulesDate) rulesDate.textContent = rules.sources.updated;
+      if (affixJson) affixJson.textContent = JSON.stringify(rules.slots, null, 2);
+      if (temperingJson) temperingJson.textContent = JSON.stringify(rules.slots, null, 2);
+      if (mwJson) mwJson.textContent = 'Masterworking priorities TBD';
+      if (skillsList) skillsList.innerHTML = '<li>Hydra core; rest per Icy Veins</li>';
+      if (paragonList) paragonList.innerHTML = '<li>Boards & glyphs TBD</li>';
+      
+      btnLoadDemo.textContent = '✓ Loaded';
+      btnLoadDemo.style.background = 'var(--success)';
+      setTimeout(() => {
+        btnLoadDemo.textContent = 'Load Demo Build';
+        btnLoadDemo.style.background = '';
+        btnLoadDemo.disabled = false;
+      }, 1000);
+      
+    } catch (error) {
+      console.error('Error loading demo:', error);
+      btnLoadDemo.textContent = 'Error Loading';
+      btnLoadDemo.style.background = 'var(--error)';
+      setTimeout(() => {
+        btnLoadDemo.textContent = 'Load Demo Build';
+        btnLoadDemo.style.background = '';
+        btnLoadDemo.disabled = false;
+      }, 2000);
+    }
+  });
+}
 
-$('#btn-clear-build').addEventListener('click', () => {
-  if (!confirm('Clear saved build images & notes?')) return;
-  localStorage.removeItem(STORAGE_KEY);
-  location.reload();
-});
+const btnClearBuild = $('#btn-clear-build');
+if (btnClearBuild) {
+  btnClearBuild.addEventListener('click', () => {
+    if (!confirm('Clear saved build images & notes?')) return;
+    localStorage.removeItem(STORAGE_KEY);
+    location.reload();
+  });
+}
 
 const NOTES_KEY = 'hc-notes';
 const notes = document.getElementById('notes-text');
-notes.value = localStorage.getItem(NOTES_KEY) || '';
-notes.addEventListener('input', () => localStorage.setItem(NOTES_KEY, notes.value));
+if (notes) {
+  notes.value = localStorage.getItem(NOTES_KEY) || '';
+  notes.addEventListener('input', () => localStorage.setItem(NOTES_KEY, notes.value));
+}
 
 // ----- Camera wiring -----
 const camPanel = document.getElementById('cameraPanel');
@@ -87,27 +195,49 @@ let camStream = null;
 let lastCaptureDataUrl = null;
 
 // Populate slot dropdown
-SLOTS.forEach(s => {
-  const opt = document.createElement('option');
-  opt.value = s;
-  opt.textContent = s[0].toUpperCase() + s.slice(1);
-  camSlot.appendChild(opt);
-});
+if (camSlot) {
+  SLOTS.forEach(s => {
+    const opt = document.createElement('option');
+    opt.value = s;
+    opt.textContent = s[0].toUpperCase() + s.slice(1);
+    camSlot.appendChild(opt);
+  });
+}
 
-// Open camera
+// Enhanced camera functionality
 async function openCamera() {
+  if (!camPanel || !camVideo || !btnOpenCam) return;
+  
   try {
     camPanel.classList.remove('hidden');
-    btnSaveCapture.disabled = true;
-    camCanvas.classList.add('hidden');
+    if (btnSaveCapture) btnSaveCapture.disabled = true;
+    if (camCanvas) camCanvas.classList.add('hidden');
     lastCaptureDataUrl = null;
+    
+    // Add loading state
+    btnOpenCam.classList.add('loading');
+    btnOpenCam.textContent = 'Opening Camera...';
 
     camStream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'environment' }
+      video: { 
+        facingMode: 'environment',
+        width: { ideal: 1920 },
+        height: { ideal: 1080 }
+      }
     });
+    
     camVideo.srcObject = camStream;
+    btnOpenCam.classList.remove('loading');
+    btnOpenCam.textContent = 'Camera Active';
+    
+    // Add success feedback
+    camPanel.style.borderColor = 'var(--success)';
+    
   } catch (e) {
+    console.error('Camera error:', e);
     alert('Camera error: ' + e.message);
+    btnOpenCam.classList.remove('loading');
+    btnOpenCam.textContent = 'Open Camera';
   }
 }
 
@@ -117,11 +247,17 @@ function stopCamera() {
     camStream.getTracks().forEach(t => t.stop());
     camStream = null;
   }
-  camPanel.classList.add('hidden');
+  if (camPanel) camPanel.classList.add('hidden');
+  if (btnOpenCam) {
+    btnOpenCam.textContent = 'Open Camera';
+    btnOpenCam.classList.remove('loading');
+  }
 }
 
-// Capture current frame
+// Enhanced capture with visual feedback
 function captureFrame() {
+  if (!camVideo || !camCanvas || !btnCapture) return;
+  
   const vw = camVideo.videoWidth || 1280;
   const vh = camVideo.videoHeight || 720;
   camCanvas.width = vw;
@@ -130,31 +266,58 @@ function captureFrame() {
   ctx.drawImage(camVideo, 0, 0, vw, vh);
   lastCaptureDataUrl = camCanvas.toDataURL('image/jpeg', 0.92);
   camCanvas.classList.remove('hidden');
-  btnSaveCapture.disabled = false;
+  if (btnSaveCapture) btnSaveCapture.disabled = false;
+  
+  // Add capture feedback
+  btnCapture.textContent = '✓ Captured';
+  btnCapture.style.background = 'var(--success)';
+  setTimeout(() => {
+    btnCapture.textContent = 'Capture';
+    btnCapture.style.background = '';
+  }, 1000);
 }
 
-// Save to selected slot card
+// Enhanced save with feedback
 function saveCaptureToSlot() {
-  if (!lastCaptureDataUrl) return;
+  if (!lastCaptureDataUrl || !camSlot) return;
+  
   const slot = camSlot.value;
   const el = document.querySelector(`.slot[data-slot="${slot}"]`);
+  if (!el) return;
+  
   const img = el.querySelector('img');
-  const status = el.querySelector('.status');
+  if (!img) return;
 
   img.src = lastCaptureDataUrl;
   build[slot] = build[slot] || {};
   build[slot].image = lastCaptureDataUrl;
   build[slot].status = 'Unscored';
+  updateSlotStatus(slot, 'Unscored');
   saveBuild(build);
-  status.textContent = 'Unscored';
+  
+  // Add success animation
+  el.style.transform = 'scale(1.05)';
+  setTimeout(() => {
+    el.style.transform = '';
+  }, 200);
+  
   stopCamera();
 }
 
-// Hook up buttons
-btnOpenCam.textContent = 'Open Camera';
-btnOpenCam.addEventListener('click', openCamera);
-btnCapture.addEventListener('click', captureFrame);
-btnSaveCapture.addEventListener('click', saveCaptureToSlot);
-btnCancelCam.addEventListener('click', stopCamera);
+// Hook up camera buttons
+if (btnOpenCam) {
+  btnOpenCam.textContent = 'Open Camera';
+  btnOpenCam.addEventListener('click', openCamera);
+}
 
-;
+if (btnCapture) {
+  btnCapture.addEventListener('click', captureFrame);
+}
+
+if (btnSaveCapture) {
+  btnSaveCapture.addEventListener('click', saveCaptureToSlot);
+}
+
+if (btnCancelCam) {
+  btnCancelCam.addEventListener('click', stopCamera);
+}

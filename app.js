@@ -73,6 +73,88 @@ const notes = document.getElementById('notes-text');
 notes.value = localStorage.getItem(NOTES_KEY) || '';
 notes.addEventListener('input', () => localStorage.setItem(NOTES_KEY, notes.value));
 
-document.getElementById('btn-check-gear').addEventListener('click', () => {
-  alert('OCR & grading arriving in v0.2.');
+// ----- Camera wiring -----
+const camPanel = document.getElementById('cameraPanel');
+const camVideo = document.getElementById('camPreview');
+const camCanvas = document.getElementById('camCanvas');
+const camSlot = document.getElementById('camSlot');
+const btnOpenCam = document.getElementById('btn-check-gear');
+const btnCapture = document.getElementById('btn-capture');
+const btnSaveCapture = document.getElementById('btn-save-capture');
+const btnCancelCam = document.getElementById('btn-cancel-camera');
+
+let camStream = null;
+let lastCaptureDataUrl = null;
+
+// Populate slot dropdown
+SLOTS.forEach(s => {
+  const opt = document.createElement('option');
+  opt.value = s;
+  opt.textContent = s[0].toUpperCase() + s.slice(1);
+  camSlot.appendChild(opt);
 });
+
+// Open camera
+async function openCamera() {
+  try {
+    camPanel.classList.remove('hidden');
+    btnSaveCapture.disabled = true;
+    camCanvas.classList.add('hidden');
+    lastCaptureDataUrl = null;
+
+    camStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment' }
+    });
+    camVideo.srcObject = camStream;
+  } catch (e) {
+    alert('Camera error: ' + e.message);
+  }
+}
+
+// Stop camera
+function stopCamera() {
+  if (camStream) {
+    camStream.getTracks().forEach(t => t.stop());
+    camStream = null;
+  }
+  camPanel.classList.add('hidden');
+}
+
+// Capture current frame
+function captureFrame() {
+  const vw = camVideo.videoWidth || 1280;
+  const vh = camVideo.videoHeight || 720;
+  camCanvas.width = vw;
+  camCanvas.height = vh;
+  const ctx = camCanvas.getContext('2d');
+  ctx.drawImage(camVideo, 0, 0, vw, vh);
+  lastCaptureDataUrl = camCanvas.toDataURL('image/jpeg', 0.92);
+  camCanvas.classList.remove('hidden');
+  btnSaveCapture.disabled = false;
+}
+
+// Save to selected slot card
+function saveCaptureToSlot() {
+  if (!lastCaptureDataUrl) return;
+  const slot = camSlot.value;
+  const el = document.querySelector(`.slot[data-slot="${slot}"]`);
+  const img = el.querySelector('img');
+  const status = el.querySelector('.status');
+
+  img.src = lastCaptureDataUrl;
+  build[slot] = build[slot] || {};
+  build[slot].image = lastCaptureDataUrl;
+  build[slot].status = 'Unscored';
+  saveBuild(build);
+  status.textContent = 'Unscored';
+  stopCamera();
+}
+
+// Hook up buttons
+btnOpenCam.textContent = 'Open Camera';
+btnOpenCam.addEventListener('click', openCamera);
+btnCapture.addEventListener('click', captureFrame);
+btnSaveCapture.addEventListener('click', saveCaptureToSlot);
+btnCancelCam.addEventListener('click', stopCamera);
+
+;

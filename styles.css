@@ -40,3 +40,8 @@ footer { border-top: 1px solid #222; padding: 12px; text-align: center; color: v
 @media (min-width: 480px) {
   .paper-doll { grid-template-columns: repeat(3, 1fr); }
 }
+.hidden { display: none; }
+.camera { background: var(--card); border: 1px solid #222; border-radius: 10px; padding: 10px; margin-top: 10px; }
+.camera video, .camera canvas { width: 100%; border-radius: 8px; }
+.row { display: flex; gap: 8px; align-items: center; margin-top: 8px; flex-wrap: wrap; }
+button.ghost { background: #1a1a1a; color: var(--fg); border: 1px solid #333; }

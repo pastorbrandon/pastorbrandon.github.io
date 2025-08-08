@@ -31,6 +31,21 @@
         <button id="btn-clear-build">Clear Build</button>
         <button id="btn-check-gear">Check Gear (OCR – v0.2)</button>
       </div>
+      <!-- Camera panel -->
+<div id="cameraPanel" class="camera hidden">
+  <video id="camPreview" autoplay playsinline></video>
+  <canvas id="camCanvas" class="capture hidden"></canvas>
+
+  <div class="row">
+    <label for="camSlot">Save to slot:</label>
+    <select id="camSlot"></select>
+
+    <button id="btn-capture">Capture</button>
+    <button id="btn-save-capture" disabled>Save to Slot</button>
+    <button id="btn-cancel-camera" class="ghost">Cancel</button>
+  </div>
+</div>
+
       <div class="paper-doll">
         <div class="slot" data-slot="helm"><h3>Helm</h3><img src="assets/placeholder.png"><div class="status">—</div></div>
         <div class="slot" data-slot="amulet"><h3>Amulet</h3><img src="assets/placeholder.png"><div class="status">—</div></div>

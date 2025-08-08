@@ -1,5 +1,5 @@
 
-const CACHE = 'hc-cache-v1';
+const CACHE = 'hc-cache-v2';
 const ASSETS = [
   '/', '/index.html', '/styles.css', '/app.js',
   '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png',

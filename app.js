@@ -160,7 +160,7 @@ function openFilePickerForAnalysis() {
         
         // Analyze with GPT (AI will identify gear type)
         const report = await analyzeWithGPT(dataUrl, 'auto', rules);
-        console.log('Analysis report:', report);
+        console.log('Full AI Analysis report:', JSON.stringify(report, null, 2));
         
         // Handle ring slots specially
         let targetSlot = report.slot;
@@ -177,16 +177,23 @@ function openFilePickerForAnalysis() {
           }
         }
         
-        // Convert report to our format
+        // Convert report to our format - preserve all details
         const gearData = {
           name: report.name,
-          affixes: report.affixes.map(affix => affix.stat),
+          affixes: report.affixes || [], // Keep full affix objects with stat, val, and type
           score: report.score || 0,
           grade: report.status.toLowerCase(),
           slot: targetSlot,
-          reasons: report.reasons,
-          improvements: report.improvements
+          reasons: report.reasons || [],
+          improvements: report.improvements || [],
+          aspects: report.aspects || [], // Preserve aspects
+          rarity: report.rarity,
+          type: report.type,
+          itemLevel: report.itemLevel,
+          notes: report.notes
         };
+        
+        console.log('Converted gear data:', JSON.stringify(gearData, null, 2));
         
         // Update analysis state
         currentAnalysis.newGearData = gearData;
@@ -595,6 +602,8 @@ function showImprovementSuggestions(slot, gearData) {
 
 // Update gear analysis UI
 function updateGearAnalysis(detectedSlot, newGearData) {
+  console.log('updateGearAnalysis called with:', { detectedSlot, newGearData });
+  
   // Update current gear info
   const currentGear = build[detectedSlot];
   const currentGearInfo = document.getElementById('currentGearInfo');
@@ -650,7 +659,7 @@ function updateGearAnalysis(detectedSlot, newGearData) {
   // Update new gear info
   const newGearInfo = document.getElementById('newGearInfo');
   if (newGearInfo) {
-    // Build detailed specs for new gear
+    // Build detailed specs for new gear - same format as current gear
     let newSpecs = '';
     
     // Add item details
@@ -688,11 +697,17 @@ function updateGearAnalysis(detectedSlot, newGearData) {
       newSpecs += '<div class="gear-notes"><strong>Notes:</strong><p>' + newGearData.notes + '</p></div>';
     }
     
-    newGearInfo.innerHTML = `
-      <p class="gear-name">${newGearData.name}</p>
-      <p class="gear-status">Status: ${newGearData.grade} (${newGearData.score}/100)</p>
-      <div class="gear-specs">${newSpecs}</div>
+    // Use the same detailed format as current gear display
+    const newGearHtml = `
+      <div class="gear-info">
+        <p class="gear-name">${newGearData.name}</p>
+        <p class="gear-status">Status: ${newGearData.grade} (${newGearData.score}/100)</p>
+        <div class="gear-specs">${newSpecs}</div>
+      </div>
     `;
+    
+    console.log('Setting newGearInfo HTML:', newGearHtml);
+    newGearInfo.innerHTML = newGearHtml;
   }
   
   // Generate recommendation with detailed reasoning

@@ -68,8 +68,31 @@ const CONFIG = {
 
 // Local storage keys
 const STORAGE_KEY = 'hc-build-v1';
-function saveBuild(build) { localStorage.setItem(STORAGE_KEY, JSON.stringify(build)); }
-function loadBuild() { try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch { return {}; } }
+// PWA Detection and Storage Debugging
+function isPWA() {
+  return window.matchMedia('(display-mode: standalone)').matches || 
+         window.navigator.standalone === true;
+}
+
+// Enhanced build loading with PWA debugging
+function loadBuild() { 
+  try { 
+    const build = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
+    console.log('Loading build from localStorage:', build);
+    console.log('Running as PWA:', isPWA());
+    console.log('localStorage available:', !!window.localStorage);
+    return build;
+  } catch (error) {
+    console.error('Error loading build from localStorage:', error);
+    return {}; 
+  } 
+}
+
+function saveBuild(build) { 
+  console.log('Saving build to localStorage:', build);
+  console.log('Running as PWA:', isPWA());
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(build)); 
+}
 
 const SLOTS = ['helm','amulet','chest','gloves','pants','boots','ring1','ring2','weapon','offhand'];
 let build = loadBuild();
@@ -90,6 +113,32 @@ setTimeout(() => {
     console.log('Modal forced hidden on script start');
   }
 }, 0);
+
+// Test function for debugging
+function testApp() {
+  console.log('=== APP TEST ===');
+  console.log('PWA Mode:', isPWA());
+  console.log('localStorage available:', !!window.localStorage);
+  console.log('Current build:', build);
+  console.log('Check Gear button:', !!document.getElementById('btn-check-gear'));
+  console.log('Add Gear buttons:', document.querySelectorAll('.add-gear-btn').length);
+  console.log('Netlify function URL:', FN_URL);
+  
+  // Test localStorage
+  try {
+    localStorage.setItem('test', 'test');
+    const test = localStorage.getItem('test');
+    localStorage.removeItem('test');
+    console.log('localStorage test:', test === 'test' ? 'PASS' : 'FAIL');
+  } catch (error) {
+    console.error('localStorage test FAILED:', error);
+  }
+}
+
+// Run test on page load
+document.addEventListener('DOMContentLoaded', () => {
+  setTimeout(testApp, 1000); // Run after everything loads
+});
 
 // Wait for DOM to be ready before initializing modal
 document.addEventListener('DOMContentLoaded', () => {
@@ -1062,7 +1111,9 @@ if (btnSalvage) {
 // Hook up Check New Gear button
 const btnCheckGear = document.getElementById('btn-check-gear');
 if (btnCheckGear) {
+  console.log('Check Gear button found, adding event listener');
   btnCheckGear.addEventListener('click', async () => {
+    console.log('Check Gear button clicked');
     try {
       // Prompt user for gear slot
       const slot = await promptForGearSlot();
@@ -1070,6 +1121,8 @@ if (btnCheckGear) {
         alert('❌ Gear analysis cancelled. Could not determine gear type.');
         return;
       }
+      
+      console.log(`Selected slot: ${slot}`);
       
       // Set up analysis state
       currentAnalysis = {
@@ -1087,6 +1140,8 @@ if (btnCheckGear) {
       alert('Error starting gear analysis: ' + error.message);
     }
   });
+} else {
+  console.error('Check Gear button not found!');
 }
 
 // Function to open file picker for analysis (not direct equip)

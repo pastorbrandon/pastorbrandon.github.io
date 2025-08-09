@@ -58,28 +58,34 @@ export const handler = async (event) => {
       }
     };
 
-    const MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini"; // cheaper + solid
+    const MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
 
     const messages = [
       {
         role: "system",
         content:
           "You are a Diablo 4 gear analyst for a Hydra Sorcerer. " +
-          "Extract clean fields and grade using ONLY the supplied rules. " +
+          "CRITICAL: Only report what you can actually SEE in the image. Do NOT guess, assume, or make up information. " +
+          "If you cannot clearly read an affix, aspect, or stat, do NOT include it. " +
+          "For aspects: Only list aspects that are explicitly visible in the image. If no aspect is shown, return empty array. " +
+          "For affixes: Only include affixes with their exact values as shown in the image. " +
+          "Reference these guides for accurate Hydra Sorcerer recommendations: " +
+          "https://www.icy-veins.com/d4/guides/hydra-sorcerer-build/ and " +
+          "https://maxroll.gg/d4/build-guides/hydra-sorcerer-guide " +
           "Return STRICT JSON; no markdown. " +
-          "IMPORTANT: Automatically detect the gear slot type from the image. " +
-          "For rings, use slot 'ring' (we'll handle ring1/ring2 logic separately)."
+          "Automatically detect gear slot type from the image. For rings, use slot 'ring'."
       },
       {
         role: "user",
         content: [
           { type: "text", text:
             "Analyze this Diablo 4 item screenshot. " +
+            "ONLY report what you can clearly see in the image. Do NOT guess or assume. " +
+            "If you cannot read something clearly, do NOT include it. " +
             "Use the RULES JSON to judge for Hydra Sorcerer (Blue/Green/Yellow/Red). " +
-            "Prefer Icy Veins; break ties with reasoning; list improvements to reach Blue. " +
+            "Reference Icy Veins and Maxroll guides for accurate recommendations. " +
             "AUTOMATICALLY detect the gear slot type (helm, amulet, chest, gloves, pants, boots, ring, weapon, offhand). " +
-            "For rings, use slot 'ring' (not ring1 or ring2)." },
-          // 🔧 IMPORTANT: image_url must be an object with { url }
+            "For aspects: Only list if explicitly visible in the image. If no aspect shown, return empty array." },
           { type: "image_url", image_url: { url: image } },
           { type: "text", text: `RULES JSON:\n${JSON.stringify(rules || {})}` }
         ]
@@ -90,8 +96,8 @@ export const handler = async (event) => {
       model: MODEL,
       messages,
       response_format: { type: "json_schema", json_schema: schema },
-      max_tokens: 500,          // ✅ Chat Completions uses max_tokens
-      temperature: 0.2
+      max_tokens: 500,
+      temperature: 0.1 // Lower temperature for more conservative responses
     }));
 
     const content = resp.choices?.[0]?.message?.content || "{}";
@@ -100,11 +106,10 @@ export const handler = async (event) => {
       headers: { "Content-Type":"application/json", ...CORS }, 
       body: content 
     };
-
   } catch (err) {
     return { 
       statusCode: 400, 
-      headers: { "Content-Type":"application/json", ...CORS },
+      headers: { "Content-Type":"application/json", ...CORS }, 
       body: JSON.stringify({ error: String(err) }) 
     };
   }

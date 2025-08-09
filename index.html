@@ -7,6 +7,7 @@
   <title>Horadric Companion</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="styles.css">
+  <script src="https://unpkg.com/tesseract.js@4.1.1/dist/tesseract.min.js"></script>
 </head>
 <body>
   <header>
@@ -176,13 +177,12 @@
       <h2>Session Notes</h2>
       <textarea id="notes-text" placeholder="Farm boots; target Evade CDR; reroll amulet..."></textarea>
     </section>
-
   </main>
 
   <footer>
-    <small>Horadric Companion – PWA • Rules last updated: <span id="rules-date">—</span></small>
+    <p>Updated: <span id="rules-date">—</span></p>
   </footer>
 
-  <script type="module" src="app.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>

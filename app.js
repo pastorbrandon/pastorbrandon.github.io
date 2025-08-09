@@ -502,79 +502,114 @@ function captureFrame() {
   analyzeGear();
 }
 
-// Simulate OCR and gear analysis
-function analyzeGear() {
+// Real OCR and gear analysis
+async function analyzeGear() {
   if (!lastCaptureDataUrl) return;
   
   // Check if we're adding gear to a specific slot
   const targetSlot = currentAnalysis.targetSlot;
   const directEquip = currentAnalysis.directEquip;
   
-  if (targetSlot && directEquip) {
-    // We're directly equipping gear to a specific slot
-    console.log(`Directly equipping gear to slot: ${targetSlot}`);
+  console.log('Starting real OCR analysis...');
+  
+  try {
+    // Perform real OCR on the captured image
+    const ocrResult = await performOCR(lastCaptureDataUrl);
     
-    // Simulate OCR analysis for the target slot
-    setTimeout(() => {
-      const newGearData = generateGearData(targetSlot);
+    if (ocrResult) {
+      console.log('OCR successful:', ocrResult);
       
-      // Directly equip the gear without showing analysis panel
-      build[targetSlot] = newGearData;
-      updateGearDisplay(targetSlot, newGearData);
-      saveBuild(build);
+      if (targetSlot && directEquip) {
+        // We're directly equipping gear to a specific slot
+        console.log(`Directly equipping gear to slot: ${targetSlot}`);
+        
+        // Score the gear properly
+        ocrResult.score = scoreGear(targetSlot, ocrResult);
+        ocrResult.grade = getGradeFromScore(ocrResult.score);
+        
+        // Directly equip the gear without showing analysis panel
+        build[targetSlot] = ocrResult;
+        updateGearDisplay(targetSlot, ocrResult);
+        saveBuild(build);
+        
+        // Close camera
+        stopCamera();
+        
+        // Clear the analysis state
+        currentAnalysis = {
+          newGearData: null,
+          detectedSlot: null,
+          targetSlot: null,
+          directEquip: false
+        };
+        
+        // Show success message
+        alert(`✅ ${ocrResult.name} equipped to ${targetSlot}!`);
+      } else if (targetSlot) {
+        // We're adding gear to a specific slot with analysis
+        console.log(`Adding gear to slot: ${targetSlot}`);
+        
+        // Score the gear properly
+        ocrResult.score = scoreGear(targetSlot, ocrResult);
+        ocrResult.grade = getGradeFromScore(ocrResult.score);
+        
+        currentAnalysis = {
+          newGearData: ocrResult,
+          detectedSlot: targetSlot,
+          targetSlot: targetSlot
+        };
+        
+        // Update UI for adding gear
+        updateGearAnalysisForAdding(targetSlot, ocrResult);
+      } else {
+        // We're checking new gear (original functionality)
+        console.log('Checking new gear...');
+        
+        // Show analysis panel
+        if (gearAnalysisPanel) gearAnalysisPanel.classList.remove('hidden');
+        if (camPanel) camPanel.classList.add('hidden');
+        
+        // Detect gear type and score
+        const detectedSlot = simulateGearDetection();
+        ocrResult.score = scoreGear(detectedSlot, ocrResult);
+        ocrResult.grade = getGradeFromScore(ocrResult.score);
+        
+        currentAnalysis = {
+          newGearData: ocrResult,
+          detectedSlot: detectedSlot
+        };
+        
+        // Update UI with analysis results
+        updateGearAnalysis(detectedSlot, ocrResult);
+      }
+    } else {
+      // OCR failed, fallback to simulated data
+      console.log('OCR failed, using fallback data');
       
-      // Close camera
-      stopCamera();
-      
-      // Clear the analysis state
-      currentAnalysis = {
-        newGearData: null,
-        detectedSlot: null,
-        targetSlot: null,
-        directEquip: false
-      };
-      
-      // Show success message
-      alert(`✅ ${newGearData.name} equipped to ${targetSlot}!`);
-    }, 1500);
-  } else if (targetSlot) {
-    // We're adding gear to a specific slot with analysis
-    console.log(`Adding gear to slot: ${targetSlot}`);
-    
-    // Simulate OCR analysis for the target slot
-    setTimeout(() => {
-      const newGearData = generateGearData(targetSlot);
-      
-      currentAnalysis = {
-        newGearData: newGearData,
-        detectedSlot: targetSlot,
-        targetSlot: targetSlot
-      };
-      
-      // Update UI for adding gear
-      updateGearAnalysisForAdding(targetSlot, newGearData);
-    }, 1500);
-  } else {
-    // We're checking new gear (original functionality)
-    console.log('Checking new gear...');
-    
-    // Show analysis panel
-    if (gearAnalysisPanel) gearAnalysisPanel.classList.remove('hidden');
-    if (camPanel) camPanel.classList.add('hidden');
-    
-    // Simulate OCR analysis
-    setTimeout(() => {
-      const detectedSlot = simulateGearDetection();
-      const newGearData = generateGearData(detectedSlot);
-      
-      currentAnalysis = {
-        newGearData: newGearData,
-        detectedSlot: detectedSlot
-      };
-      
-      // Update UI with analysis results
-      updateGearAnalysis(detectedSlot, newGearData);
-    }, 1500);
+      if (targetSlot && directEquip) {
+        const fallbackData = generateGearData(targetSlot);
+        build[targetSlot] = fallbackData;
+        updateGearDisplay(targetSlot, fallbackData);
+        saveBuild(build);
+        stopCamera();
+        currentAnalysis = { newGearData: null, detectedSlot: null, targetSlot: null, directEquip: false };
+        alert(`✅ ${fallbackData.name} equipped to ${targetSlot}! (OCR failed, using simulated data)`);
+      } else if (targetSlot) {
+        const fallbackData = generateGearData(targetSlot);
+        currentAnalysis = { newGearData: fallbackData, detectedSlot: targetSlot, targetSlot: targetSlot };
+        updateGearAnalysisForAdding(targetSlot, fallbackData);
+      } else {
+        const detectedSlot = simulateGearDetection();
+        const fallbackData = generateGearData(detectedSlot);
+        if (gearAnalysisPanel) gearAnalysisPanel.classList.remove('hidden');
+        if (camPanel) camPanel.classList.add('hidden');
+        currentAnalysis = { newGearData: fallbackData, detectedSlot: detectedSlot };
+        updateGearAnalysis(detectedSlot, fallbackData);
+      }
+    }
+  } catch (error) {
+    console.error('Error during OCR analysis:', error);
+    alert('Error analyzing gear image. Please try again.');
   }
 }
 
@@ -584,12 +619,170 @@ function simulateGearDetection() {
   return gearTypes[Math.floor(Math.random() * gearTypes.length)];
 }
 
-// Generate simulated gear data
+// Real OCR function to extract gear data from image
+async function performOCR(imageDataUrl) {
+  try {
+    console.log('Starting OCR analysis...');
+    
+    // Show loading message
+    const newGearInfo = document.getElementById('newGearInfo');
+    if (newGearInfo) {
+      newGearInfo.innerHTML = `
+        <p class="gear-name">Reading image...</p>
+        <p class="gear-status">Status: Analyzing</p>
+      `;
+    }
+    
+    // Use Tesseract.js to perform OCR
+    const result = await Tesseract.recognize(
+      imageDataUrl,
+      'eng',
+      {
+        logger: m => {
+          console.log('OCR Progress:', m);
+          if (m.status === 'recognizing text') {
+            if (newGearInfo) {
+              newGearInfo.innerHTML = `
+                <p class="gear-name">Reading text...</p>
+                <p class="gear-status">Status: ${Math.round(m.progress * 100)}%</p>
+              `;
+            }
+          }
+        }
+      }
+    );
+    
+    console.log('OCR Result:', result.data.text);
+    
+    // Parse the OCR text to extract gear information
+    const gearData = parseGearFromOCR(result.data.text);
+    
+    return gearData;
+  } catch (error) {
+    console.error('OCR Error:', error);
+    // Fallback to simulated data if OCR fails
+    return null;
+  }
+}
+
+// Parse OCR text to extract gear information
+function parseGearFromOCR(ocrText) {
+  console.log('Parsing OCR text:', ocrText);
+  
+  // Actual affixes from Icy Veins Hydra Sorcerer guide
+  const affixPatterns = [
+    // Core Stats
+    'Intelligence',
+    'Dexterity',
+    'Strength',
+    'Willpower',
+    
+    // Resource
+    'Maximum Mana',
+    'Mana per Second',
+    'Lucky Hit Chance to Restore Primary Resource',
+    
+    // Critical Strike
+    'Critical Strike Chance',
+    'Critical Strike Damage',
+    
+    // Damage
+    'Fire Damage',
+    'Pyromancy Skill Damage',
+    'Conjuration Skill Damage',
+    'Damage to Burning Enemies',
+    'Damage to Crowd Controlled Enemies',
+    'Damage to Vulnerable Enemies',
+    'Vulnerable Damage',
+    
+    // Attack Speed
+    'Attack Speed',
+    'Cast Speed',
+    
+    // Cooldown Reduction
+    'Cooldown Reduction',
+    'Evade Cooldown Reduction',
+    
+    // Movement
+    'Movement Speed',
+    
+    // Defensive
+    'Maximum Life',
+    'Armor',
+    'Damage Reduction',
+    'Damage Reduction from Burning Enemies',
+    'Damage Reduction from Crowd Controlled Enemies',
+    'Damage Reduction while Injured',
+    'All Resistance',
+    'Fire Resistance',
+    'Cold Resistance',
+    'Lightning Resistance',
+    'Poison Resistance',
+    'Shadow Resistance',
+    
+    // Utility
+    'Lucky Hit Chance',
+    'Lucky Hit Effect',
+    'Crowd Control Duration',
+    'Crowd Control Effect'
+  ];
+  
+  // Extract gear name (usually the first line or prominent text)
+  const lines = ocrText.split('\n').filter(line => line.trim().length > 0);
+  let gearName = 'Unknown Gear';
+  
+  // Look for gear name patterns
+  for (const line of lines) {
+    const trimmedLine = line.trim();
+    if (trimmedLine.length > 3 && trimmedLine.length < 50) {
+      // Check if it looks like a gear name (not an affix)
+      const isAffix = affixPatterns.some(affix => 
+        trimmedLine.toLowerCase().includes(affix.toLowerCase())
+      );
+      
+      if (!isAffix && !trimmedLine.includes('%') && !trimmedLine.includes('+')) {
+        gearName = trimmedLine;
+        break;
+      }
+    }
+  }
+  
+  // Extract affixes from OCR text
+  const foundAffixes = [];
+  const lowerOcrText = ocrText.toLowerCase();
+  
+  for (const affix of affixPatterns) {
+    if (lowerOcrText.includes(affix.toLowerCase())) {
+      foundAffixes.push(affix);
+    }
+  }
+  
+  console.log('Extracted gear name:', gearName);
+  console.log('Found affixes:', foundAffixes);
+  
+  return {
+    name: gearName,
+    affixes: foundAffixes,
+    score: 0,
+    grade: 'red'
+  };
+}
+
+// Generate simulated gear data (fallback when OCR fails)
 function generateGearData(slot) {
+  // Use actual affixes from Icy Veins guide
   const affixes = [
-    'Cooldown Reduction', 'Critical Strike Chance', 'Attack Speed',
-    'Movement Speed', 'Resource Generation', 'Maximum Life',
-    'Damage Reduction', 'All Resist', 'Intelligence'
+    'Intelligence',
+    'Maximum Mana',
+    'Critical Strike Chance',
+    'Critical Strike Damage',
+    'Fire Damage',
+    'Pyromancy Skill Damage',
+    'Cooldown Reduction',
+    'Movement Speed',
+    'Maximum Life',
+    'Armor',
+    'All Resistance'
   ];
   
   const randomAffixes = affixes

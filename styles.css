@@ -460,7 +460,260 @@ footer {
 .status-indicator.yellow { background: var(--yellow); }
 .status-indicator.red { background: var(--red); }
 
-/* Gear Analysis Panel */
+/* Paper Doll - Text Only */
+.paper-doll { 
+  display: grid; 
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); 
+  gap: 16px; 
+  margin-bottom: 24px;
+}
+
+.slot { 
+  background: var(--card); 
+  border: 2px solid var(--border); 
+  padding: 16px; 
+  border-radius: 16px;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+.slot:hover {
+  border-color: var(--accent);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+.slot h3 { 
+  margin: 0 0 12px 0; 
+  font-size: 16px; 
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.gear-name {
+  font-size: 14px;
+  font-weight: 500;
+  padding: 8px 12px;
+  border-radius: 8px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+}
+
+.gear-name:hover {
+  border-color: var(--accent);
+  background: rgba(255, 146, 45, 0.1);
+}
+
+/* Gear name colors based on grade */
+.gear-name[data-grade="blue"] {
+  color: var(--blue);
+  background: rgba(47, 111, 237, 0.1);
+  border-color: var(--blue);
+}
+
+.gear-name[data-grade="green"] {
+  color: var(--green);
+  background: rgba(23, 164, 91, 0.1);
+  border-color: var(--green);
+}
+
+.gear-name[data-grade="yellow"] {
+  color: var(--yellow);
+  background: rgba(202, 161, 0, 0.1);
+  border-color: var(--yellow);
+}
+
+.gear-name[data-grade="red"] {
+  color: var(--red);
+  background: rgba(204, 58, 58, 0.1);
+  border-color: var(--red);
+}
+
+.gear-name[data-grade="unscored"] {
+  color: var(--muted);
+  background: rgba(170, 170, 170, 0.1);
+  border-color: var(--muted);
+}
+
+/* Modal Styles */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: var(--card);
+  border-radius: 16px;
+  max-width: 500px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.modal-header h3 {
+  margin: 0;
+  color: var(--accent);
+  font-size: 18px;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 24px;
+  cursor: pointer;
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+
+.close-btn:hover {
+  background: var(--bg);
+  color: var(--fg);
+}
+
+.modal-body {
+  padding: 20px;
+}
+
+.modal-gear-name {
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  padding: 12px;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.modal-gear-name.blue {
+  color: var(--blue);
+  background: rgba(47, 111, 237, 0.1);
+  border: 1px solid var(--blue);
+}
+
+.modal-gear-name.green {
+  color: var(--green);
+  background: rgba(23, 164, 91, 0.1);
+  border: 1px solid var(--green);
+}
+
+.modal-gear-name.yellow {
+  color: var(--yellow);
+  background: rgba(202, 161, 0, 0.1);
+  border: 1px solid var(--yellow);
+}
+
+.modal-gear-name.red {
+  color: var(--red);
+  background: rgba(204, 58, 58, 0.1);
+  border: 1px solid var(--red);
+}
+
+.modal-gear-stats {
+  margin-bottom: 16px;
+}
+
+.modal-gear-stats h4 {
+  margin: 0 0 8px 0;
+  color: var(--accent);
+  font-size: 14px;
+}
+
+.modal-gear-stats ul {
+  margin: 0;
+  padding-left: 20px;
+  color: var(--fg);
+}
+
+.modal-gear-stats li {
+  margin-bottom: 4px;
+  font-size: 14px;
+}
+
+.modal-gear-grade {
+  margin-bottom: 16px;
+  padding: 12px;
+  border-radius: 8px;
+  text-align: center;
+  font-weight: 600;
+}
+
+.modal-gear-grade.blue {
+  color: var(--blue);
+  background: rgba(47, 111, 237, 0.1);
+  border: 1px solid var(--blue);
+}
+
+.modal-gear-grade.green {
+  color: var(--green);
+  background: rgba(23, 164, 91, 0.1);
+  border: 1px solid var(--green);
+}
+
+.modal-gear-grade.yellow {
+  color: var(--yellow);
+  background: rgba(202, 161, 0, 0.1);
+  border: 1px solid var(--yellow);
+}
+
+.modal-gear-grade.red {
+  color: var(--red);
+  background: rgba(204, 58, 58, 0.1);
+  border: 1px solid var(--red);
+}
+
+.modal-improvement {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  margin-top: 16px;
+}
+
+.modal-improvement h4 {
+  margin: 0 0 8px 0;
+  color: var(--accent);
+  font-size: 14px;
+}
+
+.modal-improvement ul {
+  margin: 0;
+  padding-left: 20px;
+  color: var(--fg);
+}
+
+.modal-improvement li {
+  margin-bottom: 4px;
+  font-size: 14px;
+}
+
+/* Gear Analysis Panel - Text Only */
 .gear-analysis {
   background: var(--card);
   border: 1px solid var(--border);
@@ -495,15 +748,6 @@ footer {
   margin: 0 0 12px 0;
   color: var(--accent);
   font-size: 14px;
-}
-
-.current-gear img, .new-gear img {
-  width: 100%;
-  height: 120px;
-  object-fit: cover;
-  border-radius: 8px;
-  border: 2px solid var(--border);
-  margin-bottom: 12px;
 }
 
 .gear-info {
@@ -548,7 +792,7 @@ footer {
   flex-wrap: wrap;
 }
 
-.btn-primary, .btn-secondary, .btn-danger {
+.btn-primary, .btn-danger {
   padding: 10px 16px;
   border: none;
   border-radius: 8px;
@@ -568,16 +812,6 @@ footer {
   transform: translateY(-1px);
 }
 
-.btn-secondary {
-  background: var(--accent);
-  color: #000;
-}
-
-.btn-secondary:hover:not(:disabled) {
-  background: #ffb366;
-  transform: translateY(-1px);
-}
-
 .btn-danger {
   background: var(--error);
   color: #fff;
@@ -588,7 +822,7 @@ footer {
   transform: translateY(-1px);
 }
 
-.btn-primary:disabled, .btn-secondary:disabled, .btn-danger:disabled {
+.btn-primary:disabled, .btn-danger:disabled {
   opacity: 0.5;
   cursor: not-allowed;
   transform: none;
@@ -613,7 +847,12 @@ footer {
     flex-direction: column;
   }
   
-  .btn-primary, .btn-secondary, .btn-danger {
+  .btn-primary, .btn-danger {
     width: 100%;
+  }
+  
+  .modal-content {
+    width: 95%;
+    margin: 20px;
   }
 }

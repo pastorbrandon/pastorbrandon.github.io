@@ -38,42 +38,18 @@ let build = loadBuild();
 
 // Gear analysis state
 let currentAnalysis = {
-  newGearImage: null,
-  detectedSlot: null,
-  newGearData: null
+  newGearData: null,
+  detectedSlot: null
 };
 
-// Add status indicator functionality
-function updateSlotStatus(slot, status) {
-  const slotEl = document.querySelector(`.slot[data-slot="${slot}"]`);
-  if (!slotEl) return;
-  
-  const statusEl = slotEl.querySelector('.status');
-  const indicator = slotEl.querySelector('.status-indicator') || createStatusIndicator(slotEl);
-  
-  if (!statusEl || !indicator) return;
-  
-  // Remove existing status classes
-  statusEl.className = 'status';
-  indicator.className = 'status-indicator';
-  
-  // Add new status
-  if (status) {
-    statusEl.textContent = status;
-    statusEl.classList.add(status.toLowerCase());
-    indicator.classList.add(status.toLowerCase());
-  } else {
-    statusEl.textContent = '—';
-    statusEl.classList.add('unscored');
-  }
-}
-
-function createStatusIndicator(slotEl) {
-  const indicator = document.createElement('div');
-  indicator.className = 'status-indicator';
-  slotEl.appendChild(indicator);
-  return indicator;
-}
+// Modal elements
+const gearModal = document.getElementById('gearModal');
+const modalTitle = document.getElementById('modalTitle');
+const modalGearName = document.getElementById('modalGearName');
+const modalGearStats = document.getElementById('modalGearStats');
+const modalGearGrade = document.getElementById('modalGearGrade');
+const modalImprovement = document.getElementById('modalImprovement');
+const closeModal = document.getElementById('closeModal');
 
 // Gear scoring system
 function scoreGear(slot, gearData) {
@@ -113,79 +89,142 @@ function scoreGear(slot, gearData) {
   }
 }
 
-function updateGearStatus(slot, score) {
-  let status = 'red';
-  if (score >= 90) status = 'blue';
-  else if (score >= 70) status = 'green';
-  else if (score >= 50) status = 'yellow';
-  
-  updateSlotStatus(slot, status);
-  return status;
+function getGradeFromScore(score) {
+  if (score >= 90) return 'blue';
+  if (score >= 70) return 'green';
+  if (score >= 50) return 'yellow';
+  return 'red';
 }
 
-// Enhanced slot click with automatic scoring
-SLOTS.forEach(slot => {
-  const el = document.querySelector(`.slot[data-slot="${slot}"]`);
-  if (!el) return;
+function updateGearDisplay(slot, gearData) {
+  const slotEl = document.querySelector(`.slot[data-slot="${slot}"]`);
+  if (!slotEl) return;
   
-  const img = el.querySelector('img');
-  const status = el.querySelector('.status');
+  const gearNameEl = slotEl.querySelector('.gear-name');
+  if (!gearNameEl) return;
   
-  if (build[slot]?.image && img) {
-    img.src = build[slot].image;
-    if (build[slot].score !== undefined) {
-      updateGearStatus(slot, build[slot].score);
-    } else {
-      updateSlotStatus(slot, build[slot].status);
-    }
+  if (gearData) {
+    gearNameEl.textContent = gearData.name;
+    gearNameEl.setAttribute('data-grade', gearData.grade);
+  } else {
+    gearNameEl.textContent = 'No gear equipped';
+    gearNameEl.setAttribute('data-grade', 'unscored');
+  }
+}
+
+// Modal functionality
+function showGearModal(slot) {
+  const gearData = build[slot];
+  if (!gearData) return;
+  
+  modalTitle.textContent = `${slot.charAt(0).toUpperCase() + slot.slice(1)} Details`;
+  modalGearName.textContent = gearData.name;
+  modalGearName.className = `modal-gear-name ${gearData.grade}`;
+  
+  // Display gear stats
+  modalGearStats.innerHTML = `
+    <h4>Affixes:</h4>
+    <ul>
+      ${gearData.affixes.map(affix => `<li>${affix}</li>`).join('')}
+    </ul>
+  `;
+  
+  // Display grade
+  const gradeText = gearData.grade === 'blue' ? 'BiS (Best in Slot)' :
+                   gearData.grade === 'green' ? 'Good (Keep & Improve)' :
+                   gearData.grade === 'yellow' ? 'Viable' : 'Replace';
+  
+  modalGearGrade.textContent = `Grade: ${gradeText} (${gearData.score}/100)`;
+  modalGearGrade.className = `modal-gear-grade ${gearData.grade}`;
+  
+  // Show improvement suggestions for non-blue gear
+  if (gearData.grade !== 'blue') {
+    showImprovementSuggestions(slot, gearData);
+  } else {
+    modalImprovement.classList.add('hidden');
   }
   
-  el.addEventListener('click', async () => {
-    // Add loading state
-    el.classList.add('loading');
+  gearModal.classList.remove('hidden');
+}
+
+function showImprovementSuggestions(slot, gearData) {
+  try {
+    const rules = JSON.parse(localStorage.getItem('rulepack-cache') || '{}');
+    const slotRules = rules.slots && rules.slots[slot.charAt(0).toUpperCase() + slot.slice(1)];
     
-    const input = document.createElement('input');
-    input.type = 'file'; 
-    input.accept = 'image/*';
+    if (!slotRules) {
+      modalImprovement.classList.add('hidden');
+      return;
+    }
     
-    input.onchange = async () => {
-      const file = input.files[0];
-      if (!file) {
-        el.classList.remove('loading');
-        return;
-      }
-      
-      const reader = new FileReader();
-      reader.onload = () => {
-        if (img) img.src = reader.result;
-        
-        // Generate gear data and score
-        const gearData = generateGearData(slot);
-        const score = scoreGear(slot, gearData);
-        const status = updateGearStatus(slot, score);
-        
-        build[slot] = {
-          image: reader.result,
-          name: gearData.name,
-          status: status,
-          score: score,
-          affixes: gearData.affixes
-        };
-        
-        saveBuild(build);
-        el.classList.remove('loading');
-        
-        // Add success animation
-        el.style.transform = 'scale(1.05)';
-        setTimeout(() => {
-          el.style.transform = '';
-        }, 200);
-      };
-      reader.readAsDataURL(file);
-    };
+    const missingMandatory = slotRules.mandatoryAffixes.filter(affix => 
+      !gearData.affixes.some(g => g.toLowerCase().includes(affix.toLowerCase()))
+    );
     
-    input.click();
+    const missingPreferred = slotRules.preferredAffixes.filter(affix => 
+      !gearData.affixes.some(g => g.toLowerCase().includes(affix.toLowerCase()))
+    );
+    
+    let improvementHtml = '<h4>How to get to Blue:</h4><ul>';
+    
+    if (missingMandatory.length > 0) {
+      improvementHtml += '<li><strong>Missing Mandatory Affixes:</strong></li>';
+      missingMandatory.forEach(affix => {
+        improvementHtml += `<li>• ${affix}</li>`;
+      });
+    }
+    
+    if (missingPreferred.length > 0) {
+      improvementHtml += '<li><strong>Missing Preferred Affixes:</strong></li>';
+      missingPreferred.forEach(affix => {
+        improvementHtml += `<li>• ${affix}</li>`;
+      });
+    }
+    
+    improvementHtml += '</ul>';
+    modalImprovement.innerHTML = improvementHtml;
+    modalImprovement.classList.remove('hidden');
+    
+  } catch (error) {
+    console.error('Error showing improvements:', error);
+    modalImprovement.classList.add('hidden');
+  }
+}
+
+// Close modal
+if (closeModal) {
+  closeModal.addEventListener('click', () => {
+    gearModal.classList.add('hidden');
   });
+}
+
+// Close modal when clicking outside
+if (gearModal) {
+  gearModal.addEventListener('click', (e) => {
+    if (e.target === gearModal) {
+      gearModal.classList.add('hidden');
+    }
+  });
+}
+
+// Initialize paper doll with click handlers
+SLOTS.forEach(slot => {
+  const slotEl = document.querySelector(`.slot[data-slot="${slot}"]`);
+  if (!slotEl) return;
+  
+  // Load existing gear data
+  const gearData = build[slot];
+  if (gearData) {
+    updateGearDisplay(slot, gearData);
+  }
+  
+  // Add click handler for modal
+  const gearNameEl = slotEl.querySelector('.gear-name');
+  if (gearNameEl) {
+    gearNameEl.addEventListener('click', () => {
+      showGearModal(slot);
+    });
+  }
 });
 
 // Enhanced demo load with progress
@@ -240,7 +279,7 @@ if (btnLoadDemo) {
 const btnClearBuild = $('#btn-clear-build');
 if (btnClearBuild) {
   btnClearBuild.addEventListener('click', () => {
-    if (!confirm('Clear saved build images & notes?')) return;
+    if (!confirm('Clear saved build data & notes?')) return;
     localStorage.removeItem(STORAGE_KEY);
     location.reload();
   });
@@ -263,13 +302,10 @@ const btnCancelCam = document.getElementById('btn-cancel-camera');
 
 // Gear analysis panel elements
 const gearAnalysisPanel = document.getElementById('gearAnalysisPanel');
-const currentGearImg = document.getElementById('currentGearImg');
 const currentGearInfo = document.getElementById('currentGearInfo');
-const newGearImg = document.getElementById('newGearImg');
 const newGearInfo = document.getElementById('newGearInfo');
 const recommendationText = document.getElementById('recommendationText');
-const btnEquip = document.getElementById('btn-equip');
-const btnStore = document.getElementById('btn-store');
+const btnSwitch = document.getElementById('btn-switch');
 const btnSalvage = document.getElementById('btn-salvage');
 
 let camStream = null;
@@ -356,18 +392,14 @@ function analyzeGear() {
   if (gearAnalysisPanel) gearAnalysisPanel.classList.remove('hidden');
   if (camPanel) camPanel.classList.add('hidden');
   
-  // Set new gear image
-  if (newGearImg) newGearImg.src = lastCaptureDataUrl;
-  
   // Simulate OCR analysis
   setTimeout(() => {
     const detectedSlot = simulateGearDetection();
     const newGearData = generateGearData(detectedSlot);
     
     currentAnalysis = {
-      newGearImage: lastCaptureDataUrl,
-      detectedSlot: detectedSlot,
-      newGearData: newGearData
+      newGearData: newGearData,
+      detectedSlot: detectedSlot
     };
     
     // Update UI with analysis results
@@ -397,12 +429,12 @@ function generateGearData(slot) {
     name: `${slot.charAt(0).toUpperCase() + slot.slice(1)} of Power`,
     affixes: randomAffixes,
     score: 0,
-    status: 'red'
+    grade: 'red'
   };
   
   // Score the gear properly
   gearData.score = scoreGear(slot, gearData);
-  gearData.status = updateGearStatus(slot, gearData.score);
+  gearData.grade = getGradeFromScore(gearData.score);
   
   return gearData;
 }
@@ -411,15 +443,13 @@ function generateGearData(slot) {
 function updateGearAnalysis(detectedSlot, newGearData) {
   // Update current gear info
   const currentGear = build[detectedSlot];
-  if (currentGearImg && currentGearInfo) {
-    if (currentGear && currentGear.image) {
-      currentGearImg.src = currentGear.image;
+  if (currentGearInfo) {
+    if (currentGear) {
       currentGearInfo.innerHTML = `
-        <p class="gear-name">${currentGear.name || 'Equipped Gear'}</p>
-        <p class="gear-status">Status: ${currentGear.status || 'Unscored'}</p>
+        <p class="gear-name">${currentGear.name}</p>
+        <p class="gear-status">Status: ${currentGear.grade} (${currentGear.score}/100)</p>
       `;
     } else {
-      currentGearImg.src = 'assets/placeholder.png';
       currentGearInfo.innerHTML = `
         <p class="gear-name">No gear equipped</p>
         <p class="gear-status">Status: —</p>
@@ -428,11 +458,10 @@ function updateGearAnalysis(detectedSlot, newGearData) {
   }
   
   // Update new gear info
-  if (newGearImg && newGearInfo) {
-    newGearImg.src = lastCaptureDataUrl;
+  if (newGearInfo) {
     newGearInfo.innerHTML = `
       <p class="gear-name">${newGearData.name}</p>
-      <p class="gear-status">Status: ${newGearData.status}</p>
+      <p class="gear-status">Status: ${newGearData.grade} (${newGearData.score}/100)</p>
     `;
   }
   
@@ -443,8 +472,7 @@ function updateGearAnalysis(detectedSlot, newGearData) {
   }
   
   // Enable/disable buttons based on recommendation
-  if (btnEquip) btnEquip.disabled = !recommendation.canEquip;
-  if (btnStore) btnStore.disabled = !recommendation.canStore;
+  if (btnSwitch) btnSwitch.disabled = !recommendation.canSwitch;
   if (btnSalvage) btnSalvage.disabled = !recommendation.canSalvage;
 }
 
@@ -456,68 +484,52 @@ function generateRecommendation(slot, newGearData) {
   
   if (newScore >= 90) {
     return {
-      text: `Excellent ${slot}! This is BiS material. Strongly recommend equipping.`,
-      canEquip: true,
-      canStore: true,
+      text: `Excellent ${slot}! This is BiS material. Strongly recommend switching.`,
+      canSwitch: true,
       canSalvage: false
     };
   } else if (newScore >= 70) {
     if (newScore > currentScore + 10) {
       return {
-        text: `Good ${slot} with better stats than current. Recommend equipping.`,
-        canEquip: true,
-        canStore: true,
+        text: `Good ${slot} with better stats than current. Recommend switching.`,
+        canSwitch: true,
         canSalvage: false
       };
     } else {
       return {
-        text: `Decent ${slot}, but current gear is better. Consider storing for backup.`,
-        canEquip: false,
-        canStore: true,
+        text: `Decent ${slot}, but current gear is better. Consider keeping current.`,
+        canSwitch: false,
         canSalvage: false
       };
     }
   } else if (newScore >= 50) {
     return {
-      text: `Mediocre ${slot}. Only equip if current gear is worse.`,
-      canEquip: newScore > currentScore,
-      canStore: true,
+      text: `Mediocre ${slot}. Only switch if current gear is worse.`,
+      canSwitch: newScore > currentScore,
       canSalvage: false
     };
   } else {
     return {
       text: `Poor ${slot}. Recommend salvaging for materials.`,
-      canEquip: false,
-      canStore: false,
+      canSwitch: false,
       canSalvage: true
     };
   }
 }
 
 // Handle gear action buttons
-if (btnEquip) {
-  btnEquip.addEventListener('click', () => {
+if (btnSwitch) {
+  btnSwitch.addEventListener('click', () => {
     if (!currentAnalysis.detectedSlot || !currentAnalysis.newGearData) return;
     
     const slot = currentAnalysis.detectedSlot;
     const gearData = currentAnalysis.newGearData;
     
     // Update build with new gear
-    build[slot] = {
-      image: currentAnalysis.newGearImage,
-      name: gearData.name,
-      status: gearData.status,
-      score: gearData.score,
-      affixes: gearData.affixes
-    };
+    build[slot] = gearData;
     
-    // Update paper doll
-    const slotEl = document.querySelector(`.slot[data-slot="${slot}"]`);
-    if (slotEl) {
-      const img = slotEl.querySelector('img');
-      if (img) img.src = currentAnalysis.newGearImage;
-      updateSlotStatus(slot, gearData.status);
-    }
+    // Update paper doll display
+    updateGearDisplay(slot, gearData);
     
     saveBuild(build);
     
@@ -525,14 +537,7 @@ if (btnEquip) {
     if (gearAnalysisPanel) gearAnalysisPanel.classList.add('hidden');
     
     // Show success message
-    alert(`✅ ${slot} equipped successfully!`);
-  });
-}
-
-if (btnStore) {
-  btnStore.addEventListener('click', () => {
-    alert('📦 Gear stored for later consideration.');
-    if (gearAnalysisPanel) gearAnalysisPanel.classList.add('hidden');
+    alert(`✅ ${slot} switched successfully!`);
   });
 }
 

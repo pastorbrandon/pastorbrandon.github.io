@@ -50,7 +50,6 @@
         <div class="gear-comparison">
           <div class="current-gear">
             <h4>Current Gear</h4>
-            <img id="currentGearImg" src="assets/placeholder.png" alt="Current gear">
             <div id="currentGearInfo" class="gear-info">
               <p class="gear-name">No gear equipped</p>
               <p class="gear-status">Status: —</p>
@@ -59,7 +58,6 @@
           
           <div class="new-gear">
             <h4>New Gear</h4>
-            <img id="newGearImg" src="assets/placeholder.png" alt="New gear">
             <div id="newGearInfo" class="gear-info">
               <p class="gear-name">Analyzing...</p>
               <p class="gear-status">Status: —</p>
@@ -71,26 +69,72 @@
           <h4>💡 Recommendation</h4>
           <p id="recommendationText">Analyzing gear...</p>
           <div class="recommendation-actions">
-            <button id="btn-equip" class="btn-primary" disabled>✅ Equip</button>
-            <button id="btn-store" class="btn-secondary" disabled>📦 Store</button>
+            <button id="btn-switch" class="btn-primary" disabled>✅ Switch</button>
             <button id="btn-salvage" class="btn-danger" disabled>🗑️ Salvage</button>
           </div>
         </div>
       </div>
 
       <div class="paper-doll">
-        <div class="slot" data-slot="helm"><h3>Helm</h3><img src="assets/placeholder.png"><div class="status">—</div></div>
-        <div class="slot" data-slot="amulet"><h3>Amulet</h3><img src="assets/placeholder.png"><div class="status">—</div></div>
-        <div class="slot" data-slot="chest"><h3>Chest</h3><img src="assets/placeholder.png"><div class="status">—</div></div>
-        <div class="slot" data-slot="gloves"><h3>Gloves</h3><img src="assets/placeholder.png"><div class="status">—</div></div>
-        <div class="slot" data-slot="pants"><h3>Pants</h3><img src="assets/placeholder.png"><div class="status">—</div></div>
-        <div class="slot" data-slot="boots"><h3>Boots</h3><img src="assets/placeholder.png"><div class="status">—</div></div>
-        <div class="slot" data-slot="ring1"><h3>Ring 1</h3><img src="assets/placeholder.png"><div class="status">—</div></div>
-        <div class="slot" data-slot="ring2"><h3>Ring 2</h3><img src="assets/placeholder.png"><div class="status">—</div></div>
-        <div class="slot" data-slot="weapon"><h3>Weapon</h3><img src="assets/placeholder.png"><div class="status">—</div></div>
-        <div class="slot" data-slot="offhand"><h3>Off-hand</h3><img src="assets/placeholder.png"><div class="status">—</div></div>
+        <div class="slot" data-slot="helm">
+          <h3>Helm</h3>
+          <div class="gear-name" data-grade="unscored">No gear equipped</div>
+        </div>
+        <div class="slot" data-slot="amulet">
+          <h3>Amulet</h3>
+          <div class="gear-name" data-grade="unscored">No gear equipped</div>
+        </div>
+        <div class="slot" data-slot="chest">
+          <h3>Chest</h3>
+          <div class="gear-name" data-grade="unscored">No gear equipped</div>
+        </div>
+        <div class="slot" data-slot="gloves">
+          <h3>Gloves</h3>
+          <div class="gear-name" data-grade="unscored">No gear equipped</div>
+        </div>
+        <div class="slot" data-slot="pants">
+          <h3>Pants</h3>
+          <div class="gear-name" data-grade="unscored">No gear equipped</div>
+        </div>
+        <div class="slot" data-slot="boots">
+          <h3>Boots</h3>
+          <div class="gear-name" data-grade="unscored">No gear equipped</div>
+        </div>
+        <div class="slot" data-slot="ring1">
+          <h3>Ring 1</h3>
+          <div class="gear-name" data-grade="unscored">No gear equipped</div>
+        </div>
+        <div class="slot" data-slot="ring2">
+          <h3>Ring 2</h3>
+          <div class="gear-name" data-grade="unscored">No gear equipped</div>
+        </div>
+        <div class="slot" data-slot="weapon">
+          <h3>Weapon</h3>
+          <div class="gear-name" data-grade="unscored">No gear equipped</div>
+        </div>
+        <div class="slot" data-slot="offhand">
+          <h3>Off-hand</h3>
+          <div class="gear-name" data-grade="unscored">No gear equipped</div>
+        </div>
       </div>
-      <p class="hint">Tap a slot to add/update your equipped gear. Status colors: <span class="chip blue">Blue</span> BiS, <span class="chip green">Green</span> Keep & improve, <span class="chip yellow">Yellow</span> Viable, <span class="chip red">Red</span> Replace.</p>
+      
+      <!-- Gear Details Modal -->
+      <div id="gearModal" class="modal hidden">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3 id="modalTitle">Gear Details</h3>
+            <button id="closeModal" class="close-btn">×</button>
+          </div>
+          <div class="modal-body">
+            <div id="modalGearName" class="modal-gear-name"></div>
+            <div id="modalGearStats" class="modal-gear-stats"></div>
+            <div id="modalGearGrade" class="modal-gear-grade"></div>
+            <div id="modalImprovement" class="modal-improvement hidden"></div>
+          </div>
+        </div>
+      </div>
+      
+      <p class="hint">Click a gear name to view details. Status colors: <span class="chip blue">Blue</span> BiS, <span class="chip green">Green</span> Keep & improve, <span class="chip yellow">Yellow</span> Viable, <span class="chip red">Red</span> Replace.</p>
     </section>
 
     <section id="affixes" class="tab">

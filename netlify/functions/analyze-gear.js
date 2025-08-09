@@ -67,7 +67,15 @@ export const handler = async (event) => {
           "You are a Diablo 4 gear analyst for a Hydra Sorcerer. " +
           "CRITICAL: Only report what you can actually SEE in the image. Do NOT guess, assume, or make up information. " +
           "If you cannot clearly read an affix, aspect, or stat, do NOT include it. " +
-          "For aspects: Only list aspects that are explicitly visible in the image. If no aspect is shown, return empty array. " +
+          "For aspects: Look for TWO types of aspects: " +
+          "1) IMPRINTED aspects (shown after 'Imprinted' text) - these were manually added " +
+          "2) NATURAL aspects (shown with orange star ★ and orange text) - these came with the item " +
+          "IMPORTANT: Aspects use predominantly ORANGE text with some WHITE words throughout. " +
+          "Extract the ASPECT NAME from the text (e.g., 'Serpentine Aspect', 'Storm Swell Aspect') " +
+          "and include the FULL ASPECT TEXT as shown on the item (including percentages and effects). " +
+          "For aspects array: Include both the aspect name AND the full text description. " +
+          "Example: ['Serpentine Aspect: Hydras deal 0.5-1.5% increased damage per Mana when summoned'] " +
+          "Include ALL aspects you can see, whether imprinted or natural. If no aspects visible, return empty array. " +
           "For affixes: Only include affixes with their exact values as shown in the image. " +
           "Reference these guides for accurate Hydra Sorcerer recommendations: " +
           "https://www.icy-veins.com/d4/guides/hydra-sorcerer-build/ and " +
@@ -85,7 +93,10 @@ export const handler = async (event) => {
             "Use the RULES JSON to judge for Hydra Sorcerer (Blue/Green/Yellow/Red). " +
             "Reference Icy Veins and Maxroll guides for accurate recommendations. " +
             "AUTOMATICALLY detect the gear slot type (helm, amulet, chest, gloves, pants, boots, ring, weapon, offhand). " +
-            "For aspects: Only list if explicitly visible in the image. If no aspect shown, return empty array." },
+            "For aspects: Look for both IMPRINTED aspects (after 'Imprinted' text) and NATURAL aspects (orange star ★ with orange text). " +
+            "Aspects use ORANGE text with some WHITE words. Extract the ASPECT NAME and include the FULL TEXT description. " +
+            "Example: ['Serpentine Aspect: Hydras deal 0.5-1.5% increased damage per Mana when summoned'] " +
+            "Include ALL visible aspects in the aspects array. If no aspects shown, return empty array." },
           { type: "image_url", image_url: { url: image } },
           { type: "text", text: `RULES JSON:\n${JSON.stringify(rules || {})}` }
         ]

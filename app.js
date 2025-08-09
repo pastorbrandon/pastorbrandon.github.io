@@ -14,6 +14,36 @@ window.addEventListener('unhandledrejection', (event) => {
   console.error('Unhandled promise rejection:', event.reason);
 });
 
+// Configuration
+const CONFIG = {
+  OPENAI_API_KEY: localStorage.getItem('openai-api-key') || null
+};
+
+// Function to set OpenAI API key
+function setOpenAIKey(apiKey) {
+  CONFIG.OPENAI_API_KEY = apiKey;
+  localStorage.setItem('openai-api-key', apiKey);
+  console.log('OpenAI API key saved');
+}
+
+// Function to check if API key is configured
+function isOpenAIConfigured() {
+  return CONFIG.OPENAI_API_KEY && CONFIG.OPENAI_API_KEY !== 'your-openai-api-key-here';
+}
+
+// Function to prompt for API key if not configured
+function checkOpenAIConfiguration() {
+  if (!isOpenAIConfigured()) {
+    const apiKey = prompt('Please enter your OpenAI API key to enable AI gear analysis:\n\nGet your key from: https://platform.openai.com/api-keys\n\n(You can change this later by calling setOpenAIKey())');
+    if (apiKey && apiKey.trim()) {
+      setOpenAIKey(apiKey.trim());
+      alert('✅ API key saved! You can now use AI gear analysis.');
+    } else {
+      alert('⚠️ No API key provided. Gear analysis will use fallback data.');
+    }
+  }
+}
+
 const $ = sel => document.querySelector(sel);
 const $$ = sel => Array.from(document.querySelectorAll(sel));
 
@@ -123,7 +153,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Initialize paper doll with click handlers
-  SLOTS.forEach(slot => {
+SLOTS.forEach(slot => {
     const slotEl = document.querySelector(`.slot[data-slot="${slot}"]`);
     if (!slotEl) return;
     
@@ -353,8 +383,8 @@ if (btnLoadDemo) {
     btnLoadDemo.disabled = true;
     
     try {
-      const resp = await fetch('rulepack.json');
-      const rules = await resp.json();
+  const resp = await fetch('rulepack.json');
+  const rules = await resp.json();
       
       // Cache rules for gear scoring
       localStorage.setItem('rulepack-cache', JSON.stringify(rules));
@@ -398,16 +428,16 @@ const btnClearBuild = $('#btn-clear-build');
 if (btnClearBuild) {
   btnClearBuild.addEventListener('click', () => {
     if (!confirm('Clear saved build data & notes?')) return;
-    localStorage.removeItem(STORAGE_KEY);
-    location.reload();
-  });
+  localStorage.removeItem(STORAGE_KEY);
+  location.reload();
+});
 }
 
 const NOTES_KEY = 'hc-notes';
 const notes = document.getElementById('notes-text');
 if (notes) {
-  notes.value = localStorage.getItem(NOTES_KEY) || '';
-  notes.addEventListener('input', () => localStorage.setItem(NOTES_KEY, notes.value));
+notes.value = localStorage.getItem(NOTES_KEY) || '';
+notes.addEventListener('input', () => localStorage.setItem(NOTES_KEY, notes.value));
 }
 
 // ----- Camera wiring for gear analysis -----
@@ -569,8 +599,15 @@ async function analyzeGear() {
         if (gearAnalysisPanel) gearAnalysisPanel.classList.remove('hidden');
         if (camPanel) camPanel.classList.add('hidden');
         
-        // Detect gear type and score
-        const detectedSlot = simulateGearDetection();
+        // For checking gear, we need to detect the slot type
+        // Since we can't simulate, we'll ask the user
+        const detectedSlot = await promptForGearSlot();
+        if (!detectedSlot) {
+          alert('❌ Gear analysis cancelled. Could not determine gear type.');
+          stopCamera();
+          return;
+        }
+        
         ocrResult.score = scoreGear(detectedSlot, ocrResult);
         ocrResult.grade = getGradeFromScore(ocrResult.score);
         
@@ -583,224 +620,247 @@ async function analyzeGear() {
         updateGearAnalysis(detectedSlot, ocrResult);
       }
     } else {
-      // OCR failed, fallback to simulated data
-      console.log('OCR failed, using fallback data');
-      
-      if (targetSlot && directEquip) {
-        const fallbackData = generateGearData(targetSlot);
-        build[targetSlot] = fallbackData;
-        updateGearDisplay(targetSlot, fallbackData);
-        saveBuild(build);
-        stopCamera();
-        currentAnalysis = { newGearData: null, detectedSlot: null, targetSlot: null, directEquip: false };
-        alert(`✅ ${fallbackData.name} equipped to ${targetSlot}! (OCR failed, using simulated data)`);
-      } else if (targetSlot) {
-        const fallbackData = generateGearData(targetSlot);
-        currentAnalysis = { newGearData: fallbackData, detectedSlot: targetSlot, targetSlot: targetSlot };
-        updateGearAnalysisForAdding(targetSlot, fallbackData);
-      } else {
-        const detectedSlot = simulateGearDetection();
-        const fallbackData = generateGearData(detectedSlot);
-        if (gearAnalysisPanel) gearAnalysisPanel.classList.remove('hidden');
-        if (camPanel) camPanel.classList.add('hidden');
-        currentAnalysis = { newGearData: fallbackData, detectedSlot: detectedSlot };
-        updateGearAnalysis(detectedSlot, fallbackData);
-      }
+      // OCR failed - show error and stop
+      console.log('OCR failed - no data returned');
+      alert('❌ Failed to analyze gear image. Please try again with a clearer photo.');
+      stopCamera();
     }
   } catch (error) {
     console.error('Error during OCR analysis:', error);
-    alert('Error analyzing gear image. Please try again.');
+    alert(`❌ Error analyzing gear: ${error.message}\n\nPlease check your API key and try again.`);
+    stopCamera();
   }
 }
 
-// Simulate gear type detection (OCR simulation)
-function simulateGearDetection() {
-  const gearTypes = ['helm', 'amulet', 'chest', 'gloves', 'pants', 'boots', 'ring1', 'ring2', 'weapon', 'offhand'];
-  return gearTypes[Math.floor(Math.random() * gearTypes.length)];
+// Function to prompt user for gear slot when checking new gear
+async function promptForGearSlot() {
+  const slotOptions = [
+    'helm', 'amulet', 'chest', 'gloves', 'pants', 
+    'boots', 'ring1', 'ring2', 'weapon', 'offhand'
+  ];
+  
+  const slotNames = {
+    'helm': 'Helm',
+    'amulet': 'Amulet', 
+    'chest': 'Chest',
+    'gloves': 'Gloves',
+    'pants': 'Pants',
+    'boots': 'Boots',
+    'ring1': 'Ring 1',
+    'ring2': 'Ring 2',
+    'weapon': 'Weapon',
+    'offhand': 'Off-hand'
+  };
+  
+  const slotList = slotOptions.map(slot => `${slotNames[slot]} (${slot})`).join('\n');
+  
+  const userInput = prompt(
+    `What type of gear is this?\n\n${slotList}\n\nEnter the slot name (e.g., "helm" or "weapon"):`
+  );
+  
+  if (!userInput) return null;
+  
+  const selectedSlot = slotOptions.find(slot => 
+    slot.toLowerCase() === userInput.toLowerCase() ||
+    slotNames[slot].toLowerCase() === userInput.toLowerCase()
+  );
+  
+  if (!selectedSlot) {
+    alert('❌ Invalid slot type. Please try again.');
+    return null;
+  }
+  
+  return selectedSlot;
 }
 
-// Real OCR function to extract gear data from image
-async function performOCR(imageDataUrl) {
+// ChatGPT Vision API function to extract gear data from image
+async function analyzeGearWithChatGPT(imageDataUrl) {
   try {
-    console.log('Starting OCR analysis...');
+    console.log('Starting ChatGPT Vision analysis...');
     
     // Show loading message
     const newGearInfo = document.getElementById('newGearInfo');
     if (newGearInfo) {
       newGearInfo.innerHTML = `
-        <p class="gear-name">Reading image...</p>
-        <p class="gear-status">Status: Analyzing</p>
+        <p class="gear-name">Analyzing with AI...</p>
+        <p class="gear-status">Status: Processing</p>
       `;
     }
     
-    // Use Tesseract.js to perform OCR
-    const result = await Tesseract.recognize(
-      imageDataUrl,
-      'eng',
-      {
-        logger: m => {
-          console.log('OCR Progress:', m);
-          if (m.status === 'recognizing text') {
-            if (newGearInfo) {
-              newGearInfo.innerHTML = `
-                <p class="gear-name">Reading text...</p>
-                <p class="gear-status">Status: ${Math.round(m.progress * 100)}%</p>
-              `;
+    // Check if API key is configured
+    if (!isOpenAIConfigured()) {
+      checkOpenAIConfiguration();
+      throw new Error('OpenAI API key not configured');
+    }
+    
+    // Convert image to base64
+    const base64Image = imageDataUrl.split(',')[1];
+    
+    const OPENAI_API_KEY = CONFIG.OPENAI_API_KEY;
+    
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: 'gpt-4-vision-preview',
+        messages: [{
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: `Analyze this Diablo 4 gear image and extract the following information in JSON format:
+              {
+                "name": "gear name",
+                "affixes": ["affix1", "affix2", "affix3", "affix4"]
+              }
+              
+              Only include actual affixes that are visible in the image. Common Diablo 4 affixes include:
+              - Intelligence, Dexterity, Strength, Willpower
+              - Maximum Mana, Mana per Second
+              - Critical Strike Chance, Critical Strike Damage
+              - Fire Damage, Pyromancy Skill Damage, Conjuration Skill Damage
+              - Cooldown Reduction, Evade Cooldown Reduction
+              - Movement Speed
+              - Maximum Life, Armor, Damage Reduction
+              - All Resistance, Fire Resistance, Cold Resistance, Lightning Resistance, Poison Resistance, Shadow Resistance
+              - Lucky Hit Chance, Lucky Hit Effect
+              - Crowd Control Duration, Crowd Control Effect
+              - Damage to Burning Enemies, Damage to Crowd Controlled Enemies, Damage to Vulnerable Enemies
+              - Vulnerable Damage, Overpower Damage
+              - Attack Speed, Cast Speed
+              - Resource Generation, Lucky Hit Chance to Restore Primary Resource
+              
+              Be very precise and only include what you can clearly see. If you can't read something clearly, don't include it.`
+            },
+            {
+              type: 'image_url',
+              image_url: {
+                url: `data:image/jpeg;base64,${base64Image}`
+              }
             }
-          }
+          ]
+        }],
+        max_tokens: 500
+      })
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`API request failed: ${response.status} - ${errorText}`);
+    }
+    
+    const data = await response.json();
+    console.log('ChatGPT Response:', data);
+    
+    if (data.choices && data.choices[0] && data.choices[0].message) {
+      const content = data.choices[0].message.content;
+      console.log('ChatGPT Content:', content);
+      
+      // Try to parse JSON from the response
+      try {
+        const gearData = JSON.parse(content);
+        console.log('Parsed gear data:', gearData);
+        
+        // Validate the response
+        if (gearData.name && Array.isArray(gearData.affixes)) {
+          return {
+            name: gearData.name,
+            affixes: gearData.affixes,
+            score: 0,
+            grade: 'red'
+          };
+        } else {
+          throw new Error('Invalid gear data format from AI');
         }
+      } catch (parseError) {
+        console.error('Failed to parse ChatGPT response:', parseError);
+        console.log('Raw content:', content);
+        
+        // Try to extract information manually from the text
+        const extractedData = extractGearFromText(content);
+        if (extractedData.affixes.length === 0) {
+          throw new Error('Could not extract any affixes from AI response');
+        }
+        return extractedData;
       }
-    );
+    } else {
+      throw new Error('Invalid API response format');
+    }
     
-    console.log('OCR Result:', result.data.text);
-    
-    // Parse the OCR text to extract gear information
-    const gearData = parseGearFromOCR(result.data.text);
-    
-    return gearData;
   } catch (error) {
-    console.error('OCR Error:', error);
-    // Fallback to simulated data if OCR fails
+    console.error('ChatGPT API Error:', error);
+    
+    // Show error message to user
+    const newGearInfo = document.getElementById('newGearInfo');
+    if (newGearInfo) {
+      newGearInfo.innerHTML = `
+        <p class="gear-name">Analysis Failed</p>
+        <p class="gear-status">Status: Error - ${error.message}</p>
+      `;
+    }
+    
     return null;
   }
 }
 
-// Parse OCR text to extract gear information
-function parseGearFromOCR(ocrText) {
-  console.log('Parsing OCR text:', ocrText);
+// Fallback function to extract gear info from ChatGPT text response
+function extractGearFromText(text) {
+  console.log('Extracting gear from text:', text);
   
-  // Actual affixes from Icy Veins Hydra Sorcerer guide
-  const affixPatterns = [
-    // Core Stats
-    'Intelligence',
-    'Dexterity',
-    'Strength',
-    'Willpower',
-    
-    // Resource
-    'Maximum Mana',
-    'Mana per Second',
-    'Lucky Hit Chance to Restore Primary Resource',
-    
-    // Critical Strike
-    'Critical Strike Chance',
-    'Critical Strike Damage',
-    
-    // Damage
-    'Fire Damage',
-    'Pyromancy Skill Damage',
-    'Conjuration Skill Damage',
-    'Damage to Burning Enemies',
-    'Damage to Crowd Controlled Enemies',
-    'Damage to Vulnerable Enemies',
-    'Vulnerable Damage',
-    
-    // Attack Speed
-    'Attack Speed',
-    'Cast Speed',
-    
-    // Cooldown Reduction
-    'Cooldown Reduction',
-    'Evade Cooldown Reduction',
-    
-    // Movement
-    'Movement Speed',
-    
-    // Defensive
-    'Maximum Life',
-    'Armor',
-    'Damage Reduction',
-    'Damage Reduction from Burning Enemies',
-    'Damage Reduction from Crowd Controlled Enemies',
-    'Damage Reduction while Injured',
-    'All Resistance',
-    'Fire Resistance',
-    'Cold Resistance',
-    'Lightning Resistance',
-    'Poison Resistance',
-    'Shadow Resistance',
-    
-    // Utility
-    'Lucky Hit Chance',
-    'Lucky Hit Effect',
-    'Crowd Control Duration',
-    'Crowd Control Effect'
-  ];
-  
-  // Extract gear name (usually the first line or prominent text)
-  const lines = ocrText.split('\n').filter(line => line.trim().length > 0);
+  // Look for gear name (usually in quotes or at the beginning)
   let gearName = 'Unknown Gear';
-  
-  // Look for gear name patterns
-  for (const line of lines) {
-    const trimmedLine = line.trim();
-    if (trimmedLine.length > 3 && trimmedLine.length < 50) {
-      // Check if it looks like a gear name (not an affix)
-      const isAffix = affixPatterns.some(affix => 
-        trimmedLine.toLowerCase().includes(affix.toLowerCase())
-      );
-      
-      if (!isAffix && !trimmedLine.includes('%') && !trimmedLine.includes('+')) {
-        gearName = trimmedLine;
-        break;
-      }
-    }
+  const nameMatch = text.match(/"name":\s*"([^"]+)"/);
+  if (nameMatch) {
+    gearName = nameMatch[1];
   }
   
-  // Extract affixes from OCR text
-  const foundAffixes = [];
-  const lowerOcrText = ocrText.toLowerCase();
-  
-  for (const affix of affixPatterns) {
-    if (lowerOcrText.includes(affix.toLowerCase())) {
-      foundAffixes.push(affix);
-    }
+  // Look for affixes array
+  let affixes = [];
+  const affixesMatch = text.match(/"affixes":\s*\[([^\]]+)\]/);
+  if (affixesMatch) {
+    const affixesText = affixesMatch[1];
+    affixes = affixesText.split(',').map(affix => 
+      affix.trim().replace(/"/g, '').replace(/\[|\]/g, '')
+    ).filter(affix => affix.length > 0);
   }
   
-  console.log('Extracted gear name:', gearName);
-  console.log('Found affixes:', foundAffixes);
+  // Only use exact matches from the text, don't guess
+  if (affixes.length === 0) {
+    // Look for specific affix patterns in the text
+    const affixPatterns = [
+      'Intelligence', 'Dexterity', 'Strength', 'Willpower',
+      'Maximum Mana', 'Mana per Second', 'Lucky Hit Chance to Restore Primary Resource',
+      'Critical Strike Chance', 'Critical Strike Damage',
+      'Fire Damage', 'Pyromancy Skill Damage', 'Conjuration Skill Damage',
+      'Cooldown Reduction', 'Evade Cooldown Reduction', 'Movement Speed',
+      'Maximum Life', 'Armor', 'Damage Reduction', 'All Resistance',
+      'Fire Resistance', 'Cold Resistance', 'Lightning Resistance', 'Poison Resistance', 'Shadow Resistance',
+      'Lucky Hit Chance', 'Lucky Hit Effect', 'Crowd Control Duration', 'Crowd Control Effect',
+      'Damage to Burning Enemies', 'Damage to Crowd Controlled Enemies', 'Damage to Vulnerable Enemies',
+      'Vulnerable Damage', 'Overpower Damage', 'Attack Speed', 'Cast Speed',
+      'Resource Generation'
+    ];
+    
+    const lowerText = text.toLowerCase();
+    affixes = affixPatterns.filter(affix => 
+      lowerText.includes(affix.toLowerCase())
+    );
+  }
   
   return {
     name: gearName,
-    affixes: foundAffixes,
+    affixes: affixes,
     score: 0,
     grade: 'red'
   };
 }
 
-// Generate simulated gear data (fallback when OCR fails)
-function generateGearData(slot) {
-  // Use actual affixes from Icy Veins guide
-  const affixes = [
-    'Intelligence',
-    'Maximum Mana',
-    'Critical Strike Chance',
-    'Critical Strike Damage',
-    'Fire Damage',
-    'Pyromancy Skill Damage',
-    'Cooldown Reduction',
-    'Movement Speed',
-    'Maximum Life',
-    'Armor',
-    'All Resistance'
-  ];
-  
-  const randomAffixes = affixes
-    .sort(() => Math.random() - 0.5)
-    .slice(0, 4);
-  
-  const gearData = {
-    name: `${slot.charAt(0).toUpperCase() + slot.slice(1)} of Power`,
-    affixes: randomAffixes,
-    score: 0,
-    grade: 'red'
-  };
-  
-  // Score the gear properly
-  gearData.score = scoreGear(slot, gearData);
-  gearData.grade = getGradeFromScore(gearData.score);
-  
-  return gearData;
+// Replace the old OCR function with ChatGPT
+async function performOCR(imageDataUrl) {
+  return await analyzeGearWithChatGPT(imageDataUrl);
 }
 
 // Update gear analysis UI
@@ -1014,11 +1074,11 @@ if (btnSalvage) {
 // Hook up camera buttons
 if (btnOpenCam) {
   btnOpenCam.textContent = 'Check New Gear';
-  btnOpenCam.addEventListener('click', openCamera);
+btnOpenCam.addEventListener('click', openCamera);
 }
 
 if (btnCapture) {
-  btnCapture.addEventListener('click', captureFrame);
+btnCapture.addEventListener('click', captureFrame);
 }
 
 if (btnCancelCam) {
@@ -1030,6 +1090,36 @@ if (btnCancelCam) {
     if (currentAnalysis.targetSlot) {
       currentAnalysis.targetSlot = null;
       currentAnalysis.directEquip = false;
+    }
+  });
+}
+
+// Configure API button
+const btnConfigureApi = document.getElementById('btn-configure-api');
+if (btnConfigureApi) {
+  btnConfigureApi.addEventListener('click', () => {
+    const currentKey = CONFIG.OPENAI_API_KEY;
+    const maskedKey = currentKey ? `${currentKey.substring(0, 8)}...` : 'Not set';
+    
+    const newKey = prompt(
+      `Current OpenAI API Key: ${maskedKey}\n\n` +
+      `Enter your OpenAI API key to enable AI gear analysis:\n\n` +
+      `Get your key from: https://platform.openai.com/api-keys\n\n` +
+      `(Leave empty to remove current key)`,
+      currentKey === 'your-openai-api-key-here' ? '' : currentKey
+    );
+    
+    if (newKey === null) return; // User cancelled
+    
+    if (newKey.trim() === '') {
+      // Remove the key
+      localStorage.removeItem('openai-api-key');
+      CONFIG.OPENAI_API_KEY = null;
+      alert('🗑️ API key removed. Gear analysis will use fallback data.');
+    } else {
+      // Set the new key
+      setOpenAIKey(newKey.trim());
+      alert('✅ API key saved! You can now use AI gear analysis.');
     }
   });
 }

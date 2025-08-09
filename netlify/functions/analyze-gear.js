@@ -97,9 +97,16 @@ export const handler = async (event) => {
           "  1) IMPRINTED aspects (shown after 'Imprinted' text) - manually added\n" +
           "  2) NATURAL aspects (shown with orange star ★ and orange text) - came with item\n" +
           "- Aspects use predominantly ORANGE text with some WHITE words\n" +
+          "- IMPORTANT: Aspects can appear anywhere on the item, including after 'Lucky Hit' indicators\n" +
+          "- Lucky Hit effects can be either regular affixes OR aspects - look for orange text\n" +
+          "- If you see orange text that describes a special effect or power, it's likely an aspect\n" +
+          "- Pay special attention to any orange text after 'Lucky Hit' - it might be an aspect\n" +
+          "- Common aspect keywords: 'Aspect', 'Effect', 'Power', 'Ability', 'Skill'\n" +
+          "- Reference known Hydra Sorcerer aspects: Serpentine Aspect, Storm Swell Aspect, Snowveiled Aspect, Flash Fire Aspect, Aspect of Shredding Blades, Aspect of Concentration, Everliving Aspect, Aspect of the Orange Herald, Conceited Aspect, Battle Caster's Aspect, Aspect of Concentration, etc.\n" +
           "- Extract the ASPECT NAME and include the FULL TEXT description\n" +
           "- Example: {name: 'Serpentine Aspect', description: 'Hydras deal 0.5-1.5% increased damage per Mana when summoned', type: 'imprinted'}\n" +
-          "- Include ALL aspects you can see, whether imprinted or natural\n\n" +
+          "- Include ALL aspects you can see, whether imprinted or natural\n" +
+          "- If you're unsure whether something is an aspect, include it - better to be thorough\n\n" +
           "ITEM IDENTIFICATION:\n" +
           "- Automatically detect gear slot type from the image\n" +
           "- For rings, use slot 'ring' (not ring1/ring2)\n" +
@@ -120,6 +127,11 @@ export const handler = async (event) => {
             "REQUIREMENTS:\n" +
             "1. Capture EVERY visible affix with exact values\n" +
             "2. Identify ALL aspects (imprinted and natural) with full descriptions\n" +
+            "   - Look for orange text that describes special effects or powers\n" +
+            "   - Aspects can appear anywhere, including after 'Lucky Hit' indicators\n" +
+            "   - Lucky Hit effects can be either regular affixes OR aspects - check for orange text\n" +
+            "   - If you see orange text that seems like a special ability, include it as an aspect\n" +
+            "   - Pay extra attention to any orange text after 'Lucky Hit' - it might be an aspect\n" +
             "3. Detect the gear slot automatically\n" +
             "4. Include item level, rarity, and type if visible\n" +
             "5. Provide detailed scoring and reasoning\n\n" +

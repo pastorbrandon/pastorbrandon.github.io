@@ -712,11 +712,15 @@ function updateGearAnalysis(detectedSlot, newGearData) {
   
   // Generate recommendation with detailed reasoning
   const recommendation = generateRecommendation(detectedSlot, newGearData);
+  const plainLanguageRecommendation = generatePlainLanguageRecommendation(detectedSlot, newGearData, currentGear);
   const recommendationReasons = document.getElementById('recommendationReasons');
   if (recommendationReasons) {
     const comparisonDetails = generateDetailedComparison(currentGear, newGearData);
     recommendationReasons.innerHTML = `
       <p id="recommendationText">${recommendation.text}</p>
+      <div class="plain-language-recommendation">
+        <p><strong>Analysis:</strong> ${plainLanguageRecommendation}</p>
+      </div>
       <div class="recommendation-details">
         <ul>
           ${recommendation.reasons.map(reason => `<li>• ${reason}</li>`).join('')}
@@ -886,6 +890,40 @@ function generateDetailedComparison(currentGear, newGearData) {
   comparisonHtml += '</div>';
   
   return comparisonHtml;
+}
+
+// Generate plain language recommendation
+function generatePlainLanguageRecommendation(slot, newGearData, currentGear) {
+  const currentScore = currentGear ? (currentGear.score || 0) : 0;
+  const newScore = newGearData.score;
+  const scoreDiff = newScore - currentScore;
+  
+  // Get slot-specific context
+  const slotName = slot.charAt(0).toUpperCase() + slot.slice(1);
+  
+  if (newScore >= 90) {
+    return `This ${slotName.toLowerCase()} is exceptional for your Hydra Sorcerer build. With a score of ${newScore}/100, it's significantly better than your current gear and represents BiS (Best in Slot) material. The combination of affixes and aspects makes this perfect for endgame content and high-tier pushing.`;
+  } else if (newScore >= 80) {
+    if (scoreDiff > 5) {
+      return `This ${slotName.toLowerCase()} is a solid upgrade for your Hydra build. Scoring ${newScore}/100 vs your current ${currentScore}/100, it provides a ${scoreDiff}-point improvement. The affixes and aspects align well with Hydra Sorcerer priorities, making it great for speed farming and general content.`;
+    } else {
+      return `This ${slotName.toLowerCase()} is good quality but doesn't significantly improve your current setup. While it scores ${newScore}/100, your current gear at ${currentScore}/100 is actually better. Consider keeping this as backup or for alternative builds.`;
+    }
+  } else if (newScore >= 70) {
+    if (scoreDiff > 10) {
+      return `This ${slotName.toLowerCase()} offers a moderate upgrade for your Hydra build. With a score of ${newScore}/100 vs your current ${currentScore}/100, it's ${scoreDiff} points better. While not exceptional, it's decent for mid-tier content and provides some improvement.`;
+    } else {
+      return `This ${slotName.toLowerCase()} is mediocre compared to your current gear. Scoring ${newScore}/100 vs your current ${currentScore}/100, it's ${Math.abs(scoreDiff)} points worse. The affixes and aspects don't align well with Hydra Sorcerer priorities.`;
+    }
+  } else if (newScore >= 50) {
+    if (scoreDiff > 15) {
+      return `This ${slotName.toLowerCase()} is a minor upgrade despite its low score. At ${newScore}/100 vs your current ${currentScore}/100, it's ${scoreDiff} points better. Only switch if you need an immediate improvement, as this won't significantly enhance your Hydra build.`;
+    } else {
+      return `This ${slotName.toLowerCase()} is poor quality and not suitable for your Hydra Sorcerer build. Scoring only ${newScore}/100 vs your current ${currentScore}/100, it's ${Math.abs(scoreDiff)} points worse. The affixes and aspects don't support Hydra gameplay effectively.`;
+    }
+  } else {
+    return `This ${slotName.toLowerCase()} is very poor quality and should be salvaged. With a score of only ${newScore}/100 vs your current ${currentScore}/100, it's ${Math.abs(scoreDiff)} points worse. The affixes and aspects are completely unsuitable for a Hydra Sorcerer build.`;
+  }
 }
 
 // Generate recommendation logic - DECISIVE VERSION WITH REASONING

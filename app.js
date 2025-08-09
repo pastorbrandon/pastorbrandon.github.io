@@ -135,11 +135,6 @@ function testApp() {
   }
 }
 
-// Run test on page load
-document.addEventListener('DOMContentLoaded', () => {
-  setTimeout(testApp, 1000); // Run after everything loads
-});
-
 // Wait for DOM to be ready before initializing modal
 document.addEventListener('DOMContentLoaded', () => {
   console.log('DOM loaded, initializing modal...');
@@ -195,52 +190,122 @@ document.addEventListener('DOMContentLoaded', () => {
       e.stopPropagation();
       closeGearModal();
     });
-    console.log('Close button event listener added');
   }
 
-  // Close modal when clicking outside
-  if (gearModal) {
-    gearModal.addEventListener('click', (e) => {
-      if (e.target === gearModal) {
-        console.log('Clicked outside modal, closing...');
-        closeGearModal();
+  // Set up gear slot click handlers
+  SLOTS.forEach(slot => {
+    const slotElement = document.querySelector(`[data-slot="${slot}"]`);
+    if (slotElement) {
+      const gearName = slotElement.querySelector('.gear-name');
+      if (gearName) {
+        gearName.addEventListener('click', () => {
+          console.log(`Gear name clicked for slot: ${slot}`);
+          if (build[slot]) {
+            showGearModal(slot);
+          }
+        });
       }
-    });
-    console.log('Modal outside click handler added');
-  }
-
-  // Initialize paper doll with click handlers
-SLOTS.forEach(slot => {
-    const slotEl = document.querySelector(`.slot[data-slot="${slot}"]`);
-    if (!slotEl) return;
-    
-    // Load existing gear data
-    const gearData = build[slot];
-    if (gearData) {
-      updateGearDisplay(slot, gearData);
-    }
-    
-    // Add click handler for modal (only if gear exists)
-    const gearNameEl = slotEl.querySelector('.gear-name');
-    if (gearNameEl) {
-      gearNameEl.addEventListener('click', () => {
-        console.log(`Gear name clicked for slot: ${slot}, has gear data:`, !!build[slot]);
-        if (build[slot]) {
-          showGearModal(slot);
-        }
-      });
-    }
-    
-    // Add click handler for Add Gear button
-    const addGearBtn = slotEl.querySelector('.add-gear-btn');
-    if (addGearBtn) {
-      addGearBtn.addEventListener('click', () => {
-        addGearManually(slot);
-      });
     }
   });
 
-  console.log('Paper doll initialization complete');
+  // Set up Add Gear buttons
+  document.querySelectorAll('.add-gear-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      const slot = e.target.closest('[data-slot]').dataset.slot;
+      console.log(`Add Gear button clicked for slot: ${slot}`);
+      addGearManually(slot);
+    });
+  });
+
+  // Hook up Check New Gear button
+  const btnCheckGear = document.getElementById('btn-check-gear');
+  if (btnCheckGear) {
+    console.log('Check Gear button found, adding event listener');
+    btnCheckGear.addEventListener('click', async () => {
+      console.log('Check Gear button clicked');
+      try {
+        // Prompt user for gear slot
+        const slot = await promptForGearSlot();
+        if (!slot) {
+          alert('❌ Gear analysis cancelled. Could not determine gear type.');
+          return;
+        }
+        
+        console.log(`Selected slot: ${slot}`);
+        
+        // Set up analysis state
+        currentAnalysis = {
+          newGearData: null,
+          detectedSlot: slot,
+          targetSlot: null,
+          directEquip: false
+        };
+        
+        // Open file picker for analysis
+        openFilePickerForAnalysis();
+        
+      } catch (error) {
+        console.error('Error starting gear analysis:', error);
+        alert('Error starting gear analysis: ' + error.message);
+      }
+    });
+  } else {
+    console.error('Check Gear button not found!');
+  }
+
+  // Hook up gear action buttons
+  const btnSwitch = document.getElementById('btn-switch');
+  const btnSalvage = document.getElementById('btn-salvage');
+  const gearAnalysisPanel = document.getElementById('gearAnalysisPanel');
+
+  if (btnSwitch) {
+    btnSwitch.addEventListener('click', () => {
+      if (!currentAnalysis.detectedSlot || !currentAnalysis.newGearData) return;
+      
+      const slot = currentAnalysis.detectedSlot;
+      const gearData = currentAnalysis.newGearData;
+      
+      // Update build with new gear
+      build[slot] = gearData;
+      
+      // Update paper doll display
+      updateGearDisplay(slot, gearData);
+      
+      saveBuild(build);
+      
+      // Close analysis panel
+      if (gearAnalysisPanel) gearAnalysisPanel.classList.add('hidden');
+      
+      // Clear the analysis state
+      if (currentAnalysis.targetSlot) {
+        currentAnalysis.targetSlot = null;
+        currentAnalysis.directEquip = false;
+      }
+      
+      // Show success message
+      const action = currentAnalysis.targetSlot ? 'added to' : 'switched';
+      alert(`✅ ${slot} ${action} successfully!`);
+    });
+  }
+
+  if (btnSalvage) {
+    btnSalvage.addEventListener('click', () => {
+      if (confirm('🗑️ Are you sure you want to salvage this gear?')) {
+        alert('🗑️ Gear salvaged for materials.');
+        if (gearAnalysisPanel) gearAnalysisPanel.classList.add('hidden');
+        
+        // Clear the analysis state
+        if (currentAnalysis.targetSlot) {
+          currentAnalysis.targetSlot = null;
+          currentAnalysis.directEquip = false;
+        }
+      }
+    });
+  }
+
+  // Run test after everything is set up
+  setTimeout(testApp, 500);
 });
 
 // Also force hide modal on window load
@@ -1047,217 +1112,28 @@ function generateRecommendationForAdding(slot, newGearData) {
   }
 }
 
-// Handle gear action buttons
-if (btnSwitch) {
-  btnSwitch.addEventListener('click', () => {
-    if (!currentAnalysis.detectedSlot || !currentAnalysis.newGearData) return;
-    
-    const slot = currentAnalysis.detectedSlot;
-    const gearData = currentAnalysis.newGearData;
-    
-    // Update build with new gear
-    build[slot] = gearData;
-    
-    // Update paper doll display
-    updateGearDisplay(slot, gearData);
-    
-    saveBuild(build);
-    
-    // Close analysis panel
-    if (gearAnalysisPanel) gearAnalysisPanel.classList.add('hidden');
-    
-    // Clear the analysis state
-    if (currentAnalysis.targetSlot) {
-      currentAnalysis.targetSlot = null;
-      currentAnalysis.directEquip = false;
-    }
-    
-    // Show success message
-    const action = currentAnalysis.targetSlot ? 'added to' : 'switched';
-    alert(`✅ ${slot} ${action} successfully!`);
-  });
-}
-
-if (btnSalvage) {
-  btnSalvage.addEventListener('click', () => {
-    if (confirm('🗑️ Are you sure you want to salvage this gear?')) {
-      alert('🗑️ Gear salvaged for materials.');
-      if (gearAnalysisPanel) gearAnalysisPanel.classList.add('hidden');
-      
-      // Clear the analysis state
-      if (currentAnalysis.targetSlot) {
-        currentAnalysis.targetSlot = null;
-        currentAnalysis.directEquip = false;
-      }
-    }
-  });
-}
-
-// Hook up camera buttons
-// if (btnOpenCam) { // btnOpenCam is removed
-//   btnOpenCam.textContent = 'Check New Gear';
-//   btnOpenCam.addEventListener('click', () => {
-//     // Clear any previous analysis state
-//     currentAnalysis = {
-//       newGearData: null,
-//       detectedSlot: null
-//     };
-    
-//     // Open native file picker for checking gear
-//     openFilePicker();
-//   });
-// }
-
-// Hook up Check New Gear button
-const btnCheckGear = document.getElementById('btn-check-gear');
-if (btnCheckGear) {
-  console.log('Check Gear button found, adding event listener');
-  btnCheckGear.addEventListener('click', async () => {
-    console.log('Check Gear button clicked');
-    try {
-      // Prompt user for gear slot
-      const slot = await promptForGearSlot();
-      if (!slot) {
-        alert('❌ Gear analysis cancelled. Could not determine gear type.');
-        return;
-      }
-      
-      console.log(`Selected slot: ${slot}`);
-      
-      // Set up analysis state
-      currentAnalysis = {
-        newGearData: null,
-        detectedSlot: slot,
-        targetSlot: null,
-        directEquip: false
-      };
-      
-      // Open file picker for analysis
-      openFilePickerForAnalysis();
-      
-    } catch (error) {
-      console.error('Error starting gear analysis:', error);
-      alert('Error starting gear analysis: ' + error.message);
-    }
-  });
-} else {
-  console.error('Check Gear button not found!');
-}
-
-// Function to open file picker for analysis (not direct equip)
-function openFilePickerForAnalysis() {
-  const fileInput = document.createElement('input');
-  fileInput.type = 'file';
-  fileInput.accept = 'image/*';
-  fileInput.capture = 'environment';
+// Test function for debugging
+function testApp() {
+  console.log('=== APP TEST ===');
+  console.log('PWA Mode:', isPWA());
+  console.log('localStorage available:', !!window.localStorage);
+  console.log('Current build:', build);
+  console.log('Check Gear button:', !!document.getElementById('btn-check-gear'));
+  console.log('Add Gear buttons:', document.querySelectorAll('.add-gear-btn').length);
+  console.log('Netlify function URL:', FN_URL);
   
-  fileInput.addEventListener('change', async (event) => {
-    const file = event.target.files[0];
-    if (file) {
-      try {
-        const slot = currentAnalysis.detectedSlot;
-        console.log(`Analyzing gear for slot: ${slot}`);
-        
-        // Show analysis panel
-        if (gearAnalysisPanel) gearAnalysisPanel.classList.remove('hidden');
-        
-        // Update new gear info
-        if (newGearInfo) {
-          newGearInfo.innerHTML = `
-            <p class="gear-name">Analyzing...</p>
-            <p class="gear-status">Status: Processing</p>
-          `;
-        }
-        
-        // Convert and resize image
-        const dataUrl = await fileToDataUrl(file, 1280, 0.85);
-        
-        // Load rules
-        let rules = {};
-        try {
-          const resp = await fetch('rulepack.json');
-          rules = await resp.json();
-        } catch (error) {
-          console.warn('Could not load rulepack:', error);
-        }
-        
-        // Analyze with GPT
-        const report = await analyzeWithGPT(dataUrl, slot, rules);
-        console.log('Analysis report:', report);
-        
-        // Convert report to our format
-        const gearData = {
-          name: report.name,
-          affixes: report.affixes.map(affix => affix.stat),
-          score: report.score || 0,
-          grade: report.status.toLowerCase(),
-          slot: report.slot,
-          reasons: report.reasons,
-          improvements: report.improvements
-        };
-        
-        // Update analysis state
-        currentAnalysis.newGearData = gearData;
-        
-        // Update the analysis panel
-        updateGearAnalysis(slot, gearData);
-        
-      } catch (error) {
-        console.error('Analysis failed:', error);
-        alert('Analysis failed: ' + (error.message || error));
-        
-        // Hide analysis panel
-        if (gearAnalysisPanel) gearAnalysisPanel.classList.add('hidden');
-      }
-    }
-  });
-  
-  fileInput.click();
+  // Test localStorage
+  try {
+    localStorage.setItem('test', 'test');
+    const test = localStorage.getItem('test');
+    localStorage.removeItem('test');
+    console.log('localStorage test:', test === 'test' ? 'PASS' : 'FAIL');
+  } catch (error) {
+    console.error('localStorage test FAILED:', error);
+  }
 }
 
-// if (btnCapture) { // btnCapture is removed
-// btnCapture.addEventListener('click', captureFrame);
-// }
-
-// if (btnCancelCam) { // btnCancelCam is removed
-//   btnCancelCam.addEventListener('click', () => {
-//     stopCamera();
-//     if (gearAnalysisPanel) gearAnalysisPanel.classList.add('hidden');
-    
-//     // Clear the analysis state
-//     if (currentAnalysis.targetSlot) {
-//       currentAnalysis.targetSlot = null;
-//       currentAnalysis.directEquip = false;
-//     }
-//   });
-// }
-
-// Configure API button
-const btnConfigureApi = document.getElementById('btn-configure-api');
-if (btnConfigureApi) {
-  btnConfigureApi.addEventListener('click', () => {
-    const currentKey = CONFIG.OPENAI_API_KEY;
-    const maskedKey = currentKey ? `${currentKey.substring(0, 8)}...` : 'Not set';
-    
-    const newKey = prompt(
-      `Current OpenAI API Key: ${maskedKey}\n\n` +
-      `Enter your OpenAI API key to enable AI gear analysis:\n\n` +
-      `Get your key from: https://platform.openai.com/api-keys\n\n` +
-      `(Leave empty to remove current key)`,
-      currentKey === 'your-openai-api-key-here' ? '' : currentKey
-    );
-    
-    if (newKey === null) return; // User cancelled
-    
-    if (newKey.trim() === '') {
-      // Remove the key
-      localStorage.removeItem('openai-api-key');
-      CONFIG.OPENAI_API_KEY = null;
-      alert('🗑️ API key removed. Gear analysis will use fallback data.');
-    } else {
-      // Set the new key
-      // setOpenAIKey(newKey.trim()); // This function is no longer needed
-      alert('✅ API key saved! You can now use AI gear analysis.');
-    }
-  });
-}
+// Run test on page load
+document.addEventListener('DOMContentLoaded', () => {
+  setTimeout(testApp, 1000); // Run after everything loads
+});

@@ -16,49 +16,10 @@ window.addEventListener('unhandledrejection', (event) => {
 
 // Configuration
 const CONFIG = {
-  OPENAI_API_KEY: localStorage.getItem('openai-api-key') || null
+  OPENAI_API_KEY: null // No longer needed - handled by backend
 };
 
-// Function to set OpenAI API key
-function setOpenAIKey(apiKey) {
-  CONFIG.OPENAI_API_KEY = apiKey;
-  localStorage.setItem('openai-api-key', apiKey);
-  console.log('OpenAI API key saved');
-}
-
-// Function to check if API key is configured
-function isOpenAIConfigured() {
-  return CONFIG.OPENAI_API_KEY && CONFIG.OPENAI_API_KEY !== 'your-openai-api-key-here';
-}
-
-// Function to prompt for API key if not configured
-function checkOpenAIConfiguration() {
-  if (!isOpenAIConfigured()) {
-    const apiKey = prompt('Please enter your OpenAI API key to enable AI gear analysis:\n\nGet your key from: https://platform.openai.com/api-keys\n\n(You can change this later by calling setOpenAIKey())');
-    if (apiKey && apiKey.trim()) {
-      setOpenAIKey(apiKey.trim());
-      alert('✅ API key saved! You can now use AI gear analysis.');
-    } else {
-      alert('⚠️ No API key provided. Gear analysis will use fallback data.');
-    }
-  }
-}
-
-const $ = sel => document.querySelector(sel);
-const $$ = sel => Array.from(document.querySelectorAll(sel));
-
-// Initialize tabs
-$$('#tabs button').forEach(btn => {
-  btn.addEventListener('click', () => {
-    $$('#tabs button').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    const tab = btn.dataset.tab;
-    $$('.tab').forEach(t => t.classList.remove('active'));
-    const targetTab = $('#' + tab);
-    if (targetTab) targetTab.classList.add('active');
-  });
-});
-
+// Local storage keys
 const STORAGE_KEY = 'hc-build-v1';
 function saveBuild(build) { localStorage.setItem(STORAGE_KEY, JSON.stringify(build)); }
 function loadBuild() { try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch { return {}; } }
@@ -619,7 +580,7 @@ async function promptForGearSlot() {
 // ChatGPT Vision API function to extract gear data from image
 async function analyzeGearWithChatGPT(imageDataUrl) {
   try {
-    console.log('Starting ChatGPT Vision analysis...');
+    console.log('Starting secure gear analysis...');
     
     // Show loading message
     const newGearInfo = document.getElementById('newGearInfo');
@@ -630,111 +591,59 @@ async function analyzeGearWithChatGPT(imageDataUrl) {
       `;
     }
     
-    // Check if API key is configured
-    if (!isOpenAIConfigured()) {
-      checkOpenAIConfiguration();
-      throw new Error('OpenAI API key not configured');
+    // Get the target slot for analysis
+    const targetSlot = currentAnalysis.targetSlot;
+    
+    // Load rules from rulepack
+    let rules = {};
+    try {
+      const response = await fetch('rulepack.json');
+      rules = await response.json();
+    } catch (error) {
+      console.warn('Could not load rulepack:', error);
     }
     
-    // Convert image to base64
-    const base64Image = imageDataUrl.split(',')[1];
+    console.log('Sending image to Netlify function...');
     
-    const OPENAI_API_KEY = CONFIG.OPENAI_API_KEY;
-    
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    // Call our Netlify function
+    const response = await fetch('/.netlify/functions/analyze-gear', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${OPENAI_API_KEY}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        model: 'gpt-4-vision-preview',
-        messages: [{
-          role: 'user',
-          content: [
-            {
-              type: 'text',
-              text: `Analyze this Diablo 4 gear image and extract the following information in JSON format:
-              {
-                "name": "gear name",
-                "affixes": ["affix1", "affix2", "affix3", "affix4"]
-              }
-              
-              Only include actual affixes that are visible in the image. Common Diablo 4 affixes include:
-              - Intelligence, Dexterity, Strength, Willpower
-              - Maximum Mana, Mana per Second
-              - Critical Strike Chance, Critical Strike Damage
-              - Fire Damage, Pyromancy Skill Damage, Conjuration Skill Damage
-              - Cooldown Reduction, Evade Cooldown Reduction
-              - Movement Speed
-              - Maximum Life, Armor, Damage Reduction
-              - All Resistance, Fire Resistance, Cold Resistance, Lightning Resistance, Poison Resistance, Shadow Resistance
-              - Lucky Hit Chance, Lucky Hit Effect
-              - Crowd Control Duration, Crowd Control Effect
-              - Damage to Burning Enemies, Damage to Crowd Controlled Enemies, Damage to Vulnerable Enemies
-              - Vulnerable Damage, Overpower Damage
-              - Attack Speed, Cast Speed
-              - Resource Generation, Lucky Hit Chance to Restore Primary Resource
-              
-              Be very precise and only include what you can clearly see. If you can't read something clearly, don't include it.`
-            },
-            {
-              type: 'image_url',
-              image_url: {
-                url: `data:image/jpeg;base64,${base64Image}`
-              }
-            }
-          ]
-        }],
-        max_tokens: 500
+        image: imageDataUrl,
+        slot: targetSlot || 'unknown',
+        rules: rules
       })
     });
     
+    console.log('Netlify function response status:', response.status);
+    
     if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`API request failed: ${response.status} - ${errorText}`);
+      const errorData = await response.json();
+      throw new Error(errorData.error || `Server error: ${response.status}`);
     }
     
-    const data = await response.json();
-    console.log('ChatGPT Response:', data);
+    const result = await response.json();
+    console.log('Analysis result:', result);
     
-    if (data.choices && data.choices[0] && data.choices[0].message) {
-      const content = data.choices[0].message.content;
-      console.log('ChatGPT Content:', content);
-      
-      // Try to parse JSON from the response
-      try {
-        const gearData = JSON.parse(content);
-        console.log('Parsed gear data:', gearData);
-        
-        // Validate the response
-        if (gearData.name && Array.isArray(gearData.affixes)) {
-          return {
-            name: gearData.name,
-            affixes: gearData.affixes,
-            score: 0,
-            grade: 'red'
-          };
-        } else {
-          throw new Error('Invalid gear data format from AI');
-        }
-      } catch (parseError) {
-        console.error('Failed to parse ChatGPT response:', parseError);
-        console.log('Raw content:', content);
-        
-        // Try to extract information manually from the text
-        const extractedData = extractGearFromText(content);
-        if (extractedData.affixes.length === 0) {
-          throw new Error('Could not extract any affixes from AI response');
-        }
-        return extractedData;
-      }
-    } else {
-      throw new Error('Invalid API response format');
-    }
+    // Convert the new format to our app's format
+    const gearData = {
+      name: result.name,
+      affixes: result.affixes.map(affix => affix.stat),
+      score: result.score || 0,
+      grade: result.status.toLowerCase(),
+      slot: result.slot,
+      reasons: result.reasons,
+      improvements: result.improvements
+    };
+    
+    console.log('✅ Analysis successful:', gearData);
+    return gearData;
     
   } catch (error) {
-    console.error('ChatGPT API Error:', error);
+    console.error('Analysis error:', error);
     
     // Show error message to user
     const newGearInfo = document.getElementById('newGearInfo');
@@ -1070,7 +979,7 @@ if (btnConfigureApi) {
       alert('🗑️ API key removed. Gear analysis will use fallback data.');
     } else {
       // Set the new key
-      setOpenAIKey(newKey.trim());
+      // setOpenAIKey(newKey.trim()); // This function is no longer needed
       alert('✅ API key saved! You can now use AI gear analysis.');
     }
   });

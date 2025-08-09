@@ -11,7 +11,7 @@
 <body>
   <header>
     <h1>Horadric Companion</h1>
-    <p>Hydra Sorcerer Companion (v2.3)</p>
+    <p>Hydra Sorcerer Companion (v2.4)</p>
   </header>
 
   <nav id="tabs">
@@ -29,7 +29,7 @@
       <div class="actions">
         <button id="btn-load-demo">Load Demo Build</button>
         <button id="btn-clear-build">Clear Build</button>
-        <button id="btn-check-gear">Check New Gear</button>
+        <button id="btn-check-gear" onclick="console.log('Check Gear clicked via inline handler')">Check New Gear</button>
       </div>
       
       <!-- Gear Analysis Panel -->
@@ -67,12 +67,12 @@
         <div class="slot" data-slot="helm">
           <h3>Helm</h3>
           <div class="gear-name" data-grade="unscored">No gear equipped</div>
-          <button class="add-gear-btn">+ Add Gear</button>
+          <button class="add-gear-btn" onclick="console.log('Add Gear clicked via inline handler - helm')">+ Add Gear</button>
         </div>
         <div class="slot" data-slot="amulet">
           <h3>Amulet</h3>
           <div class="gear-name" data-grade="unscored">No gear equipped</div>
-          <button class="add-gear-btn">+ Add Gear</button>
+          <button class="add-gear-btn" onclick="console.log('Add Gear clicked via inline handler - amulet')">+ Add Gear</button>
         </div>
         <div class="slot" data-slot="chest">
           <h3>Chest</h3>

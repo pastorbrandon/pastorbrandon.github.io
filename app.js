@@ -329,24 +329,51 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Set up Add Gear buttons
-  document.querySelectorAll('.add-gear-btn').forEach(btn => {
-    console.log('Setting up Add Gear button:', btn);
-    btn.addEventListener('click', (e) => {
-      console.log('Add Gear button clicked!');
+  // Set up Add Gear buttons - FIXED VERSION
+  console.log('Setting up Add Gear buttons...');
+  const addGearButtons = document.querySelectorAll('.add-gear-btn');
+  console.log('Found Add Gear buttons:', addGearButtons.length);
+  
+  addGearButtons.forEach((btn, index) => {
+    console.log(`Setting up Add Gear button ${index}:`, btn);
+    
+    // Remove any existing listeners
+    btn.removeEventListener('click', btn.clickHandler);
+    
+    // Create new click handler
+    btn.clickHandler = (e) => {
+      console.log(`Add Gear button ${index} clicked!`);
       e.preventDefault();
-      const slot = e.target.closest('[data-slot]').dataset.slot;
-      console.log(`Add Gear button clicked for slot: ${slot}`);
-      addGearManually(slot);
-    });
+      e.stopPropagation();
+      
+      const slotElement = btn.closest('[data-slot]');
+      if (slotElement) {
+        const slot = slotElement.dataset.slot;
+        console.log(`Add Gear button clicked for slot: ${slot}`);
+        addGearManually(slot);
+      } else {
+        console.error('Could not find slot for Add Gear button');
+      }
+    };
+    
+    // Add the event listener
+    btn.addEventListener('click', btn.clickHandler);
+    console.log(`Add Gear button ${index} event listener added`);
   });
 
-  // Hook up Check New Gear button
+  // Hook up Check New Gear button - FIXED VERSION
+  console.log('Setting up Check New Gear button...');
   const btnCheckGear = document.getElementById('btn-check-gear');
-  console.log('Looking for Check Gear button:', btnCheckGear);
+  console.log('Check Gear button element:', btnCheckGear);
+  
   if (btnCheckGear) {
     console.log('Check Gear button found, adding event listener');
-    btnCheckGear.addEventListener('click', async () => {
+    
+    // Remove any existing listeners
+    btnCheckGear.removeEventListener('click', btnCheckGear.clickHandler);
+    
+    // Create new click handler
+    btnCheckGear.clickHandler = async () => {
       console.log('Check Gear button clicked!');
       try {
         // Go directly to file picker - AI will identify gear type
@@ -357,25 +384,31 @@ document.addEventListener('DOMContentLoaded', () => {
           directEquip: false
         };
         
-        // Open file picker for analysis
+        console.log('Opening file picker for analysis...');
         openFilePickerForAnalysis();
         
       } catch (error) {
         console.error('Error starting gear analysis:', error);
         alert('Error starting gear analysis: ' + error.message);
       }
-    });
+    };
+    
+    // Add the event listener
+    btnCheckGear.addEventListener('click', btnCheckGear.clickHandler);
+    console.log('Check Gear button event listener added');
+    
+    // Test the button
+    console.log('Testing Check Gear button...');
+    console.log('Button onclick:', btnCheckGear.onclick);
+    console.log('Button has click handler:', !!btnCheckGear.clickHandler);
   } else {
     console.error('Check Gear button not found!');
   }
 
   // Hook up gear action buttons
-  const btnSwitch = document.getElementById('btn-switch');
-  const btnSalvage = document.getElementById('btn-salvage');
-  const gearAnalysisPanel = document.getElementById('gearAnalysisPanel');
-
   if (btnSwitch) {
     btnSwitch.addEventListener('click', () => {
+      console.log('Switch button clicked');
       if (!currentAnalysis.detectedSlot || !currentAnalysis.newGearData) return;
       
       const slot = currentAnalysis.detectedSlot;
@@ -406,6 +439,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (btnSalvage) {
     btnSalvage.addEventListener('click', () => {
+      console.log('Salvage button clicked');
       if (confirm('🗑️ Are you sure you want to salvage this gear?')) {
         alert('🗑️ Gear salvaged for materials.');
         if (gearAnalysisPanel) gearAnalysisPanel.classList.add('hidden');

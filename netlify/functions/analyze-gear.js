@@ -57,81 +57,8 @@ IMPORTANT: For missing or unclear data, use these defaults:
 Return valid JSON that matches the schema exactly. If a field is unknown, include it with null or [] (do not omit required keys).
 `;
 
-// Stricter schema for structured outputs
+// Simplified schema for better compatibility
 const SCHEMA = {
-  name: "GearReport",
-  strict: true,
-  schema: {
-    type: "object",
-    additionalProperties: false,
-    properties: {
-      name:      { type: "string" },
-      slot:      { type: "string" },               // normalized slot: helm, amulet, boots, etc.
-      rarity:    { type: "string", enum: ["Legendary","Unique","Mythic","Unknown"] },
-      type:      { type: "string" },               // e.g., "Ancestral Legendary Helm"
-      item_power:{ type: ["number","null"] },
-      armor:     { type: ["number","null"] },
-
-      aspect: {
-        type: "object",
-        additionalProperties: false,
-        properties: {
-          name:  { type: ["string","null"] },
-          source:{ type: "string", enum: ["imprinted","unique_base","unknown"] },
-          text:  { type: "string" }
-        },
-        required: ["name","source","text"]
-      },
-
-      affixes: {
-        type: "array",
-        items: {
-          type: "object",
-          additionalProperties: false,
-          properties: {
-            stat:    { type: "string" },           // normalized affix name
-            val:     { type: ["number","null"] },
-            unit:    { type: ["string","null"] },  // "%", "flat", null
-            greater: { type: "boolean" },          // blue-number/greater roll
-            tempered:{ type: "boolean" }           // if clearly tempered
-          },
-          required: ["stat","val","unit","greater","tempered"]
-        }
-      },
-
-      masterwork: {
-        type: "object",
-        additionalProperties: false,
-        properties: { rank: {type:["number","null"]}, max:{type:["number","null"]} },
-        required: ["rank","max"]
-      },
-      tempers: {
-        type: "object",
-        additionalProperties: false,
-        properties: { used:{type:["number","null"]}, max:{type:["number","null"]} },
-        required: ["used","max"]
-      },
-      sockets: { type: ["number","null"] },
-      gems:    { type: "array", items: { type:"string" } },
-
-      // grading
-      status:  { type: "string", enum:["Blue","Green","Yellow","Red"] },
-      score:   { type: ["number","null"] },
-      reasons: { type: "array", items: { type:"string" } },
-      improvements: { type: "array", items: { type:"string" } },
-
-      // debug/quality
-      confidence: { type: ["number","null"] }  // 0..1 overall extraction confidence
-    },
-    required: [
-      "name","slot","rarity","type","aspect","affixes","masterwork","tempers","sockets","gems",
-      "status","score","reasons","improvements","confidence"
-    ]
-  }
-};
-
-// Fallback schema for when strict schema fails
-const FALLBACK_SCHEMA = {
   name: "GearReport",
   schema: {
     type: "object",
@@ -202,30 +129,15 @@ export const handler = async (event) => {
 
     const messages = buildMessages({ image, slot, rules });
     
-    // Try with strict schema first
-    let resp;
-    try {
-      console.log('Attempting analysis with strict schema...');
-      resp = await withRetry(() => client.chat.completions.create({
-        model: MODEL,
-        messages,
-        response_format: { type: "json_schema", json_schema: SCHEMA },
-        max_tokens: 500,
-        temperature: 0.2
-      }));
-      console.log('Strict schema analysis successful');
-    } catch (strictError) {
-      console.warn('Strict schema failed, trying fallback schema:', strictError.message);
-      // Fallback to more lenient schema
-      resp = await withRetry(() => client.chat.completions.create({
-        model: MODEL,
-        messages,
-        response_format: { type: "json_schema", json_schema: FALLBACK_SCHEMA },
-        max_tokens: 500,
-        temperature: 0.2
-      }));
-      console.log('Fallback schema analysis successful');
-    }
+    console.log('Attempting analysis with simplified schema...');
+    const resp = await withRetry(() => client.chat.completions.create({
+      model: MODEL,
+      messages,
+      response_format: { type: "json_schema", json_schema: SCHEMA },
+      max_tokens: 500,
+      temperature: 0.2
+    }));
+    console.log('Analysis successful');
 
     const content = resp.choices?.[0]?.message?.content || "{}";
     

@@ -42,19 +42,98 @@ let currentAnalysis = {
   detectedSlot: null
 };
 
-// Modal elements
-const gearModal = document.getElementById('gearModal');
-const modalTitle = document.getElementById('modalTitle');
-const modalGearName = document.getElementById('modalGearName');
-const modalGearStats = document.getElementById('modalGearStats');
-const modalGearGrade = document.getElementById('modalGearGrade');
-const modalImprovement = document.getElementById('modalImprovement');
-const closeModal = document.getElementById('closeModal');
+// Wait for DOM to be ready before initializing modal
+document.addEventListener('DOMContentLoaded', () => {
+  console.log('DOM loaded, initializing modal...');
+  
+  // Modal elements
+  const gearModal = document.getElementById('gearModal');
+  const modalTitle = document.getElementById('modalTitle');
+  const modalGearName = document.getElementById('modalGearName');
+  const modalGearStats = document.getElementById('modalGearStats');
+  const modalGearGrade = document.getElementById('modalGearGrade');
+  const modalImprovement = document.getElementById('modalImprovement');
+  const closeModal = document.getElementById('closeModal');
 
-// Ensure modal is hidden on page load
-if (gearModal) {
-  gearModal.classList.add('hidden');
-}
+  console.log('Modal elements found:', {
+    gearModal: !!gearModal,
+    modalTitle: !!modalTitle,
+    modalGearName: !!modalGearName,
+    modalGearStats: !!modalGearStats,
+    modalGearGrade: !!modalGearGrade,
+    modalImprovement: !!modalImprovement,
+    closeModal: !!closeModal
+  });
+
+  // Ensure modal is hidden on page load
+  if (gearModal) {
+    gearModal.classList.add('hidden');
+    console.log('Modal hidden on page load');
+  }
+
+  // Close modal function
+  function closeGearModal() {
+    console.log('Closing modal...');
+    if (gearModal) {
+      gearModal.classList.add('hidden');
+      console.log('Modal closed');
+    }
+  }
+
+  // Set up modal close handlers
+  if (closeModal) {
+    closeModal.addEventListener('click', (e) => {
+      console.log('Close button clicked');
+      e.preventDefault();
+      e.stopPropagation();
+      closeGearModal();
+    });
+    console.log('Close button event listener added');
+  }
+
+  // Close modal when clicking outside
+  if (gearModal) {
+    gearModal.addEventListener('click', (e) => {
+      if (e.target === gearModal) {
+        console.log('Clicked outside modal, closing...');
+        closeGearModal();
+      }
+    });
+    console.log('Modal outside click handler added');
+  }
+
+  // Initialize paper doll with click handlers
+  SLOTS.forEach(slot => {
+    const slotEl = document.querySelector(`.slot[data-slot="${slot}"]`);
+    if (!slotEl) return;
+    
+    // Load existing gear data
+    const gearData = build[slot];
+    if (gearData) {
+      updateGearDisplay(slot, gearData);
+    }
+    
+    // Add click handler for modal (only if gear exists)
+    const gearNameEl = slotEl.querySelector('.gear-name');
+    if (gearNameEl) {
+      gearNameEl.addEventListener('click', () => {
+        if (build[slot]) {
+          showGearModal(slot);
+        }
+      });
+    }
+    
+    // Add click handler for Add Gear button
+    const addGearBtn = slotEl.querySelector('.add-gear-btn');
+    if (addGearBtn) {
+      addGearBtn.addEventListener('click', () => {
+        addGearManually(slot);
+      });
+    }
+  });
+
+  console.log('Paper doll initialization complete');
+});
 
 // Gear scoring system
 function scoreGear(slot, gearData) {
@@ -119,8 +198,24 @@ function updateGearDisplay(slot, gearData) {
 
 // Modal functionality
 function showGearModal(slot) {
+  console.log('showGearModal called for slot:', slot);
   const gearData = build[slot];
-  if (!gearData) return;
+  if (!gearData) {
+    console.log('No gear data for slot:', slot);
+    return;
+  }
+  
+  const gearModal = document.getElementById('gearModal');
+  const modalTitle = document.getElementById('modalTitle');
+  const modalGearName = document.getElementById('modalGearName');
+  const modalGearStats = document.getElementById('modalGearStats');
+  const modalGearGrade = document.getElementById('modalGearGrade');
+  const modalImprovement = document.getElementById('modalImprovement');
+  
+  if (!gearModal || !modalTitle || !modalGearName || !modalGearStats || !modalGearGrade) {
+    console.error('Modal elements not found');
+    return;
+  }
   
   modalTitle.textContent = `${slot.charAt(0).toUpperCase() + slot.slice(1)} Details`;
   modalGearName.textContent = gearData.name;
@@ -150,10 +245,14 @@ function showGearModal(slot) {
   }
   
   gearModal.classList.remove('hidden');
+  console.log('Modal shown');
 }
 
 function showImprovementSuggestions(slot, gearData) {
   try {
+    const modalImprovement = document.getElementById('modalImprovement');
+    if (!modalImprovement) return;
+    
     const rules = JSON.parse(localStorage.getItem('rulepack-cache') || '{}');
     const slotRules = rules.slots && rules.slots[slot.charAt(0).toUpperCase() + slot.slice(1)];
     
@@ -192,60 +291,12 @@ function showImprovementSuggestions(slot, gearData) {
     
   } catch (error) {
     console.error('Error showing improvements:', error);
-    modalImprovement.classList.add('hidden');
-  }
-}
-
-// Close modal function
-function closeGearModal() {
-  if (gearModal) {
-    gearModal.classList.add('hidden');
-  }
-}
-
-// Set up modal close handlers
-if (closeModal) {
-  closeModal.addEventListener('click', closeGearModal);
-}
-
-// Close modal when clicking outside
-if (gearModal) {
-  gearModal.addEventListener('click', (e) => {
-    if (e.target === gearModal) {
-      closeGearModal();
+    const modalImprovement = document.getElementById('modalImprovement');
+    if (modalImprovement) {
+      modalImprovement.classList.add('hidden');
     }
-  });
+  }
 }
-
-// Initialize paper doll with click handlers
-SLOTS.forEach(slot => {
-  const slotEl = document.querySelector(`.slot[data-slot="${slot}"]`);
-  if (!slotEl) return;
-  
-  // Load existing gear data
-  const gearData = build[slot];
-  if (gearData) {
-    updateGearDisplay(slot, gearData);
-  }
-  
-  // Add click handler for modal (only if gear exists)
-  const gearNameEl = slotEl.querySelector('.gear-name');
-  if (gearNameEl) {
-    gearNameEl.addEventListener('click', () => {
-      if (build[slot]) {
-        showGearModal(slot);
-      }
-    });
-  }
-  
-  // Add click handler for Add Gear button
-  const addGearBtn = slotEl.querySelector('.add-gear-btn');
-  if (addGearBtn) {
-    addGearBtn.addEventListener('click', () => {
-      addGearManually(slot);
-    });
-  }
-});
 
 // Function to manually add gear
 function addGearManually(slot) {

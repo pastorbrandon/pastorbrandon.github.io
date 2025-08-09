@@ -339,6 +339,7 @@ function addGearManually(slot) {
   
   // Store the target slot for when we capture the image
   currentAnalysis.targetSlot = slot;
+  currentAnalysis.directEquip = true; // Flag for direct equipping
   
   // Open camera for gear capture
   openCamera();
@@ -507,9 +508,37 @@ function analyzeGear() {
   
   // Check if we're adding gear to a specific slot
   const targetSlot = currentAnalysis.targetSlot;
+  const directEquip = currentAnalysis.directEquip;
   
-  if (targetSlot) {
-    // We're adding gear to a specific slot
+  if (targetSlot && directEquip) {
+    // We're directly equipping gear to a specific slot
+    console.log(`Directly equipping gear to slot: ${targetSlot}`);
+    
+    // Simulate OCR analysis for the target slot
+    setTimeout(() => {
+      const newGearData = generateGearData(targetSlot);
+      
+      // Directly equip the gear without showing analysis panel
+      build[targetSlot] = newGearData;
+      updateGearDisplay(targetSlot, newGearData);
+      saveBuild(build);
+      
+      // Close camera
+      stopCamera();
+      
+      // Clear the analysis state
+      currentAnalysis = {
+        newGearData: null,
+        detectedSlot: null,
+        targetSlot: null,
+        directEquip: false
+      };
+      
+      // Show success message
+      alert(`✅ ${newGearData.name} equipped to ${targetSlot}!`);
+    }, 1500);
+  } else if (targetSlot) {
+    // We're adding gear to a specific slot with analysis
     console.log(`Adding gear to slot: ${targetSlot}`);
     
     // Simulate OCR analysis for the target slot
@@ -762,9 +791,10 @@ if (btnSwitch) {
     // Close analysis panel
     if (gearAnalysisPanel) gearAnalysisPanel.classList.add('hidden');
     
-    // Clear the target slot if we were adding gear
+    // Clear the analysis state
     if (currentAnalysis.targetSlot) {
       currentAnalysis.targetSlot = null;
+      currentAnalysis.directEquip = false;
     }
     
     // Show success message
@@ -779,9 +809,10 @@ if (btnSalvage) {
       alert('🗑️ Gear salvaged for materials.');
       if (gearAnalysisPanel) gearAnalysisPanel.classList.add('hidden');
       
-      // Clear the target slot if we were adding gear
+      // Clear the analysis state
       if (currentAnalysis.targetSlot) {
         currentAnalysis.targetSlot = null;
+        currentAnalysis.directEquip = false;
       }
     }
   });
@@ -802,9 +833,10 @@ if (btnCancelCam) {
     stopCamera();
     if (gearAnalysisPanel) gearAnalysisPanel.classList.add('hidden');
     
-    // Clear the target slot if we were adding gear
+    // Clear the analysis state
     if (currentAnalysis.targetSlot) {
       currentAnalysis.targetSlot = null;
+      currentAnalysis.directEquip = false;
     }
   });
 }

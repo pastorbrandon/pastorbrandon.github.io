@@ -225,19 +225,10 @@ document.addEventListener('DOMContentLoaded', () => {
     btnCheckGear.addEventListener('click', async () => {
       console.log('Check Gear button clicked');
       try {
-        // Prompt user for gear slot
-        const slot = await promptForGearSlot();
-        if (!slot) {
-          alert('❌ Gear analysis cancelled. Could not determine gear type.');
-          return;
-        }
-        
-        console.log(`Selected slot: ${slot}`);
-        
-        // Set up analysis state
+        // Go directly to file picker - AI will identify gear type
         currentAnalysis = {
           newGearData: null,
-          detectedSlot: slot,
+          detectedSlot: null,
           targetSlot: null,
           directEquip: false
         };
@@ -252,6 +243,95 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   } else {
     console.error('Check Gear button not found!');
+  }
+
+  // Function to open file picker for analysis (not direct equip)
+  function openFilePickerForAnalysis() {
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = 'image/*';
+    fileInput.capture = 'environment';
+    
+    fileInput.addEventListener('change', async (event) => {
+      const file = event.target.files[0];
+      if (file) {
+        try {
+          console.log('File selected for analysis');
+          
+          // Show analysis panel
+          if (gearAnalysisPanel) gearAnalysisPanel.classList.remove('hidden');
+          
+          // Update new gear info
+          if (newGearInfo) {
+            newGearInfo.innerHTML = `
+              <p class="gear-name">Analyzing...</p>
+              <p class="gear-status">Status: Processing</p>
+            `;
+          }
+          
+          // Convert and resize image
+          const dataUrl = await fileToDataUrl(file, 1280, 0.85);
+          
+          // Load rules
+          let rules = {};
+          try {
+            const resp = await fetch('rulepack.json');
+            rules = await resp.json();
+          } catch (error) {
+            console.warn('Could not load rulepack:', error);
+          }
+          
+          // Analyze with GPT (AI will identify gear type)
+          const report = await analyzeWithGPT(dataUrl, 'auto', rules);
+          console.log('Analysis report:', report);
+          
+          // Handle ring slots specially
+          let targetSlot = report.slot;
+          if (targetSlot === 'ring') {
+            // For rings, compare with both ring slots and recommend the better one
+            const ring1Gear = build['ring1'];
+            const ring2Gear = build['ring2'];
+            const ring1Score = ring1Gear ? (ring1Gear.score || 0) : 0;
+            const ring2Score = ring2Gear ? (ring2Gear.score || 0) : 0;
+            
+            if (ring1Score <= ring2Score) {
+              targetSlot = 'ring1';
+            } else {
+              targetSlot = 'ring2';
+            }
+            
+            console.log(`Ring analysis: recommending ${targetSlot} (ring1: ${ring1Score}, ring2: ${ring2Score})`);
+          }
+          
+          // Convert report to our format
+          const gearData = {
+            name: report.name,
+            affixes: report.affixes.map(affix => affix.stat),
+            score: report.score || 0,
+            grade: report.status.toLowerCase(),
+            slot: targetSlot,
+            reasons: report.reasons,
+            improvements: report.improvements
+          };
+          
+          // Update analysis state
+          currentAnalysis.newGearData = gearData;
+          currentAnalysis.detectedSlot = targetSlot;
+          
+          // Update the analysis panel
+          updateGearAnalysis(targetSlot, gearData);
+          
+        } catch (error) {
+          console.error('Analysis failed:', error);
+          alert('Analysis failed: ' + (error.message || error));
+          
+          // Hide analysis panel
+          if (gearAnalysisPanel) gearAnalysisPanel.classList.add('hidden');
+        }
+      }
+    });
+    
+    fileInput.click();
   }
 
   // Hook up gear action buttons

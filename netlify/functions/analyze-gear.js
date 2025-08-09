@@ -33,7 +33,6 @@ export const handler = async (event) => {
       name: "GearReport",
       schema: {
         type: "object",
-        additionalProperties: false,
         properties: {
           name: { type: "string" },
           slot: { type: "string" },
@@ -42,13 +41,11 @@ export const handler = async (event) => {
           affixes: {
             type: "array",
             items: {
-              type: "object", 
-              additionalProperties: false,
+              type: "object",
               properties: { 
                 stat: { type: "string" }, 
                 val: { type: ["string","number","null"] } 
-              },
-              required: ["stat"]
+              }
             }
           },
           aspects: { type: "array", items: { type: "string" } },
@@ -58,8 +55,7 @@ export const handler = async (event) => {
           improvements: { type: "array", items: { type: "string" } }
         },
         required: ["name","slot","status","reasons"]
-      },
-      strict: true
+      }
     };
 
     const MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini"; // cheaper + solid

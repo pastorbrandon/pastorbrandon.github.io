@@ -51,6 +51,11 @@ const modalGearGrade = document.getElementById('modalGearGrade');
 const modalImprovement = document.getElementById('modalImprovement');
 const closeModal = document.getElementById('closeModal');
 
+// Ensure modal is hidden on page load
+if (gearModal) {
+  gearModal.classList.add('hidden');
+}
+
 // Gear scoring system
 function scoreGear(slot, gearData) {
   if (!gearData || !gearData.affixes) return 0;
@@ -191,18 +196,23 @@ function showImprovementSuggestions(slot, gearData) {
   }
 }
 
-// Close modal
-if (closeModal) {
-  closeModal.addEventListener('click', () => {
+// Close modal function
+function closeGearModal() {
+  if (gearModal) {
     gearModal.classList.add('hidden');
-  });
+  }
+}
+
+// Set up modal close handlers
+if (closeModal) {
+  closeModal.addEventListener('click', closeGearModal);
 }
 
 // Close modal when clicking outside
 if (gearModal) {
   gearModal.addEventListener('click', (e) => {
     if (e.target === gearModal) {
-      gearModal.classList.add('hidden');
+      closeGearModal();
     }
   });
 }
@@ -218,7 +228,7 @@ SLOTS.forEach(slot => {
     updateGearDisplay(slot, gearData);
   }
   
-  // Add click handler for modal
+  // Add click handler for modal (only if gear exists)
   const gearNameEl = slotEl.querySelector('.gear-name');
   if (gearNameEl) {
     gearNameEl.addEventListener('click', () => {

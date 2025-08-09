@@ -11,7 +11,7 @@
 <body>
   <header>
     <h1>Horadric Companion</h1>
-            <p>Hydra Sorcerer Companion (v3.5)</p>
+            <p>Hydra Sorcerer Companion (v3.6)</p>
   </header>
 
   <nav id="tabs">
@@ -41,6 +41,7 @@
             <div id="currentGearInfo" class="gear-info">
               <p class="gear-name">No gear equipped</p>
               <p class="gear-status">Status: —</p>
+              <div class="gear-specs"></div>
             </div>
           </div>
           
@@ -49,16 +50,19 @@
             <div id="newGearInfo" class="gear-info">
               <p class="gear-name">Analyzing...</p>
               <p class="gear-status">Status: —</p>
+              <div class="gear-specs"></div>
             </div>
           </div>
         </div>
         
         <div class="gear-recommendation">
           <h4>💡 Recommendation</h4>
-          <p id="recommendationText">Analyzing gear...</p>
+          <div id="recommendationReasons" class="recommendation-reasons">
+            <p id="recommendationText">Analyzing gear...</p>
+          </div>
           <div class="recommendation-actions">
-            <button id="btn-switch" class="btn-primary" disabled>✅ Switch</button>
-            <button id="btn-close" class="btn-secondary">✕ Close</button>
+            <button id="btn-switch" class="btn-primary">✅ Switch</button>
+            <button id="btn-discard" class="btn-secondary">🗑️ Discard</button>
           </div>
         </div>
       </div>

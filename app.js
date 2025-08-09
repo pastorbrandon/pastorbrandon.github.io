@@ -504,14 +504,38 @@ function updateGearAnalysis(detectedSlot, newGearData) {
   const currentGearInfo = document.getElementById('currentGearInfo');
   if (currentGearInfo) {
     if (currentGear) {
+      // Build detailed specs for current gear
+      let currentSpecs = '';
+      if (currentGear.affixes && currentGear.affixes.length > 0) {
+        currentSpecs += '<div class="gear-affixes"><strong>Affixes:</strong><ul>';
+        currentGear.affixes.forEach(affix => {
+          if (typeof affix === 'object' && affix.stat && affix.val) {
+            currentSpecs += `<li>${affix.stat}: ${affix.val}</li>`;
+          } else if (typeof affix === 'string') {
+            currentSpecs += `<li>${affix}</li>`;
+          }
+        });
+        currentSpecs += '</ul></div>';
+      }
+      
+      if (currentGear.aspects && currentGear.aspects.length > 0) {
+        currentSpecs += '<div class="gear-aspects"><strong>Aspects:</strong><ul>';
+        currentGear.aspects.forEach(aspect => {
+          currentSpecs += `<li>${aspect}</li>`;
+        });
+        currentSpecs += '</ul></div>';
+      }
+      
       currentGearInfo.innerHTML = `
         <p class="gear-name">${currentGear.name}</p>
         <p class="gear-status">Status: ${currentGear.grade} (${currentGear.score}/100)</p>
+        <div class="gear-specs">${currentSpecs}</div>
       `;
     } else {
       currentGearInfo.innerHTML = `
         <p class="gear-name">No gear equipped</p>
         <p class="gear-status">Status: —</p>
+        <div class="gear-specs"></div>
       `;
     }
   }
@@ -519,94 +543,168 @@ function updateGearAnalysis(detectedSlot, newGearData) {
   // Update new gear info
   const newGearInfo = document.getElementById('newGearInfo');
   if (newGearInfo) {
+    // Build detailed specs for new gear
+    let newSpecs = '';
+    if (newGearData.affixes && newGearData.affixes.length > 0) {
+      newSpecs += '<div class="gear-affixes"><strong>Affixes:</strong><ul>';
+      newGearData.affixes.forEach(affix => {
+        if (typeof affix === 'object' && affix.stat && affix.val) {
+          newSpecs += `<li>${affix.stat}: ${affix.val}</li>`;
+        } else if (typeof affix === 'string') {
+          newSpecs += `<li>${affix}</li>`;
+        }
+      });
+      newSpecs += '</ul></div>';
+    }
+    
+    if (newGearData.aspects && newGearData.aspects.length > 0) {
+      newSpecs += '<div class="gear-aspects"><strong>Aspects:</strong><ul>';
+      newGearData.aspects.forEach(aspect => {
+        newSpecs += `<li>${aspect}</li>`;
+      });
+      newSpecs += '</ul></div>';
+    }
+    
     newGearInfo.innerHTML = `
       <p class="gear-name">${newGearData.name}</p>
       <p class="gear-status">Status: ${newGearData.grade} (${newGearData.score}/100)</p>
+      <div class="gear-specs">${newSpecs}</div>
     `;
   }
   
-  // Generate recommendation
+  // Generate recommendation with detailed reasoning
   const recommendation = generateRecommendation(detectedSlot, newGearData);
-  const recommendationText = document.getElementById('recommendationText');
-  if (recommendationText) {
-    recommendationText.textContent = recommendation.text;
+  const recommendationReasons = document.getElementById('recommendationReasons');
+  if (recommendationReasons) {
+    recommendationReasons.innerHTML = `
+      <p id="recommendationText">${recommendation.text}</p>
+      <div class="recommendation-details">
+        <ul>
+          ${recommendation.reasons.map(reason => `<li>• ${reason}</li>`).join('')}
+        </ul>
+      </div>
+    `;
   }
   
-  // Enable/disable switch button based on recommendation
+  // Both buttons are always enabled - user can override recommendation
   const btnSwitch = document.getElementById('btn-switch');
+  const btnDiscard = document.getElementById('btn-discard');
+  
   if (btnSwitch) {
-    btnSwitch.disabled = !recommendation.canSwitch;
-    if (recommendation.action === 'switch') {
-      btnSwitch.textContent = '✅ Switch';
-      btnSwitch.className = 'btn-primary';
-    } else {
-      btnSwitch.textContent = '✅ Switch';
-      btnSwitch.className = 'btn-primary';
-      btnSwitch.disabled = true;
-    }
+    btnSwitch.disabled = false;
+    btnSwitch.textContent = '✅ Switch';
+    btnSwitch.className = 'btn-primary';
+  }
+  
+  if (btnDiscard) {
+    btnDiscard.disabled = false;
+    btnDiscard.textContent = '🗑️ Discard';
+    btnDiscard.className = 'btn-secondary';
   }
 }
 
-// Generate recommendation logic - DECISIVE VERSION
+// Generate recommendation logic - DECISIVE VERSION WITH REASONING
 function generateRecommendation(slot, newGearData) {
   const currentGear = build[slot];
   const currentScore = currentGear ? (currentGear.score || 0) : 0;
   const newScore = newGearData.score;
   
-  // Clear, decisive recommendations
+  let reasons = [];
+  
+  // Clear, decisive recommendations with detailed reasoning
   if (newScore >= 90) {
+    reasons.push(`🔥 BiS (Best in Slot) material with score ${newScore}/100`);
+    reasons.push(`Significantly better than current gear (${currentScore}/100)`);
+    reasons.push(`Excellent for endgame content and high-tier pushing`);
+    
     return {
       text: `🔥 SWITCH - This is BiS (Best in Slot) material! Score: ${newScore}/100`,
       action: 'switch',
-      canSwitch: true
+      canSwitch: true,
+      reasons: reasons
     };
   } else if (newScore >= 80) {
     if (newScore > currentScore + 5) {
+      reasons.push(`Excellent upgrade: ${newScore}/100 vs current ${currentScore}/100`);
+      reasons.push(`+${newScore - currentScore} score improvement`);
+      reasons.push(`Great for speed farming and general content`);
+      
       return {
         text: `✅ SWITCH - Excellent upgrade! New: ${newScore}/100 vs Current: ${currentScore}/100`,
         action: 'switch',
-        canSwitch: true
+        canSwitch: true,
+        reasons: reasons
       };
     } else {
+      reasons.push(`Great gear but current is better (${currentScore}/100 vs ${newScore}/100)`);
+      reasons.push(`Only ${currentScore - newScore} points difference`);
+      reasons.push(`Consider keeping for backup or alternative builds`);
+      
       return {
         text: `💾 STASH - Great gear but current is better. Keep for later!`,
         action: 'stash',
-        canSwitch: false
+        canSwitch: false,
+        reasons: reasons
       };
     }
   } else if (newScore >= 70) {
     if (newScore > currentScore + 10) {
+      reasons.push(`Good upgrade: ${newScore}/100 vs current ${currentScore}/100`);
+      reasons.push(`+${newScore - currentScore} score improvement`);
+      reasons.push(`Decent for mid-tier content`);
+      
       return {
         text: `✅ SWITCH - Good upgrade! New: ${newScore}/100 vs Current: ${currentScore}/100`,
         action: 'switch',
-        canSwitch: true
+        canSwitch: true,
+        reasons: reasons
       };
     } else {
+      reasons.push(`Decent gear but current is better (${currentScore}/100 vs ${newScore}/100)`);
+      reasons.push(`${currentScore - newScore} points worse than current`);
+      reasons.push(`Consider for backup or salvage for materials`);
+      
       return {
         text: `💾 STASH - Decent gear, stash for backup or alts`,
         action: 'stash',
-        canSwitch: false
+        canSwitch: false,
+        reasons: reasons
       };
     }
   } else if (newScore >= 50) {
     if (newScore > currentScore + 15) {
+      reasons.push(`Mediocre but better than current: ${newScore}/100 vs ${currentScore}/100`);
+      reasons.push(`+${newScore - currentScore} score improvement`);
+      reasons.push(`Only switch if you need immediate upgrade`);
+      
       return {
         text: `✅ SWITCH - Mediocre but better than current. New: ${newScore}/100 vs Current: ${currentScore}/100`,
         action: 'switch',
-        canSwitch: true
+        canSwitch: true,
+        reasons: reasons
       };
     } else {
+      reasons.push(`Mediocre gear: ${newScore}/100 score`);
+      reasons.push(`${currentScore - newScore} points worse than current`);
+      reasons.push(`Not worth keeping - salvage for materials`);
+      
       return {
         text: `🗑️ SALVAGE - Mediocre gear, not worth keeping`,
         action: 'salvage',
-        canSwitch: false
+        canSwitch: false,
+        reasons: reasons
       };
     }
   } else {
+    reasons.push(`Poor gear: ${newScore}/100 score`);
+    reasons.push(`${currentScore - newScore} points worse than current`);
+    reasons.push(`Definitely salvage for materials`);
+    
     return {
       text: `🗑️ SALVAGE - Poor gear, salvage for materials`,
       action: 'salvage',
-      canSwitch: false
+      canSwitch: false,
+      reasons: reasons
     };
   }
 }
@@ -682,6 +780,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Hook up gear action buttons
   const btnSwitch = document.getElementById('btn-switch');
   const btnClose = document.getElementById('btn-close');
+  const btnDiscard = document.getElementById('btn-discard'); // Added btnDiscard
 
   if (btnSwitch) {
     btnSwitch.addEventListener('click', () => {
@@ -706,6 +805,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (btnClose) {
     btnClose.addEventListener('click', () => {
+      const gearAnalysisPanel = document.getElementById('gearAnalysisPanel');
+      if (gearAnalysisPanel) gearAnalysisPanel.classList.add('hidden');
+    });
+  }
+
+  if (btnDiscard) { // Added btnDiscard
+    btnDiscard.addEventListener('click', () => {
       const gearAnalysisPanel = document.getElementById('gearAnalysisPanel');
       if (gearAnalysisPanel) gearAnalysisPanel.classList.add('hidden');
     });

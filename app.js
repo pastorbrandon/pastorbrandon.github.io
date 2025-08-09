@@ -252,12 +252,13 @@ function applyReportToSlot(slot, report) {
   // Convert the report format to our app's format
   const gearData = {
     name: report.name,
-    affixes: report.affixes.map(affix => affix.stat),
+    affixes: report.affixes, // Keep full affix objects with stat and val
     score: report.score || 0,
     grade: report.status.toLowerCase(),
     slot: report.slot,
     reasons: report.reasons,
-    improvements: report.improvements
+    improvements: report.improvements,
+    aspects: report.aspects || [] // Store aspects from AI report
   };
   
   // Update the build
@@ -295,14 +296,20 @@ function scoreGear(slot, gearData) {
     
     // Check mandatory affixes (40 points each)
     mandatoryAffixes.forEach(affix => {
-      if (gearData.affixes.some(g => g.toLowerCase().includes(affix.toLowerCase()))) {
+      if (gearData.affixes.some(g => {
+        const affixText = typeof g === 'object' ? g.stat : g;
+        return affixText.toLowerCase().includes(affix.toLowerCase());
+      })) {
         score += 40;
       }
     });
     
     // Check preferred affixes (15 points each)
     preferredAffixes.forEach(affix => {
-      if (gearData.affixes.some(g => g.toLowerCase().includes(affix.toLowerCase()))) {
+      if (gearData.affixes.some(g => {
+        const affixText = typeof g === 'object' ? g.stat : g;
+        return affixText.toLowerCase().includes(affix.toLowerCase());
+      })) {
         score += 15;
       }
     });
@@ -422,12 +429,29 @@ function showImprovementSuggestions(slot, gearData) {
       return;
     }
     
+    // Check for missing mandatory affixes
     const missingMandatory = slotRules.mandatoryAffixes.filter(affix => 
-      !gearData.affixes.some(g => g.toLowerCase().includes(affix.toLowerCase()))
+      !gearData.affixes.some(g => {
+        const affixText = typeof g === 'object' ? g.stat : g;
+        return affixText.toLowerCase().includes(affix.toLowerCase());
+      })
     );
     
+    // Check for missing preferred affixes
     const missingPreferred = slotRules.preferredAffixes.filter(affix => 
-      !gearData.affixes.some(g => g.toLowerCase().includes(affix.toLowerCase()))
+      !gearData.affixes.some(g => {
+        const affixText = typeof g === 'object' ? g.stat : g;
+        return affixText.toLowerCase().includes(affix.toLowerCase());
+      })
+    );
+    
+    // Check for incorrect aspects
+    const correctAspects = slotRules.aspects || [];
+    const currentAspects = gearData.aspects || [];
+    const incorrectAspects = currentAspects.filter(aspect => 
+      !correctAspects.some(correct => 
+        aspect.toLowerCase().includes(correct.toLowerCase())
+      )
     );
     
     let improvementHtml = '<h4>How to get to Blue:</h4><ul>';
@@ -443,6 +467,20 @@ function showImprovementSuggestions(slot, gearData) {
       improvementHtml += '<li><strong>Missing Preferred Affixes:</strong></li>';
       missingPreferred.forEach(affix => {
         improvementHtml += `<li>• ${affix}</li>`;
+      });
+    }
+    
+    if (incorrectAspects.length > 0) {
+      improvementHtml += '<li><strong>Incorrect Aspects:</strong></li>';
+      incorrectAspects.forEach(aspect => {
+        improvementHtml += `<li>• Replace "${aspect}" with correct aspect</li>`;
+      });
+    }
+    
+    if (correctAspects.length > 0 && currentAspects.length === 0) {
+      improvementHtml += '<li><strong>Missing Aspects:</strong></li>';
+      correctAspects.forEach(aspect => {
+        improvementHtml += `<li>• Add "${aspect}"</li>`;
       });
     }
     

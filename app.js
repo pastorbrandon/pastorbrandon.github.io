@@ -335,32 +335,13 @@ function showImprovementSuggestions(slot, gearData) {
 
 // Function to manually add gear
 function addGearManually(slot) {
-  const gearName = prompt(`Enter ${slot} name:`);
-  if (!gearName) return;
+  console.log(`Adding gear for slot: ${slot}`);
   
-  const affixes = prompt(`Enter affixes (comma separated):\nExample: Cooldown Reduction, Critical Strike Chance, Attack Speed`);
-  if (!affixes) return;
+  // Store the target slot for when we capture the image
+  currentAnalysis.targetSlot = slot;
   
-  const affixList = affixes.split(',').map(a => a.trim()).filter(a => a);
-  
-  const gearData = {
-    name: gearName,
-    affixes: affixList,
-    score: 0,
-    grade: 'red'
-  };
-  
-  // Score the gear properly
-  gearData.score = scoreGear(slot, gearData);
-  gearData.grade = getGradeFromScore(gearData.score);
-  
-  // Update build and display
-  build[slot] = gearData;
-  updateGearDisplay(slot, gearData);
-  saveBuild(build);
-  
-  // Show success message
-  alert(`✅ ${gearName} added to ${slot}!`);
+  // Open camera for gear capture
+  openCamera();
 }
 
 // Enhanced demo load with progress
@@ -524,23 +505,48 @@ function captureFrame() {
 function analyzeGear() {
   if (!lastCaptureDataUrl) return;
   
-  // Show analysis panel
-  if (gearAnalysisPanel) gearAnalysisPanel.classList.remove('hidden');
-  if (camPanel) camPanel.classList.add('hidden');
+  // Check if we're adding gear to a specific slot
+  const targetSlot = currentAnalysis.targetSlot;
   
-  // Simulate OCR analysis
-  setTimeout(() => {
-    const detectedSlot = simulateGearDetection();
-    const newGearData = generateGearData(detectedSlot);
+  if (targetSlot) {
+    // We're adding gear to a specific slot
+    console.log(`Adding gear to slot: ${targetSlot}`);
     
-    currentAnalysis = {
-      newGearData: newGearData,
-      detectedSlot: detectedSlot
-    };
+    // Simulate OCR analysis for the target slot
+    setTimeout(() => {
+      const newGearData = generateGearData(targetSlot);
+      
+      currentAnalysis = {
+        newGearData: newGearData,
+        detectedSlot: targetSlot,
+        targetSlot: targetSlot
+      };
+      
+      // Update UI for adding gear
+      updateGearAnalysisForAdding(targetSlot, newGearData);
+    }, 1500);
+  } else {
+    // We're checking new gear (original functionality)
+    console.log('Checking new gear...');
     
-    // Update UI with analysis results
-    updateGearAnalysis(detectedSlot, newGearData);
-  }, 1500);
+    // Show analysis panel
+    if (gearAnalysisPanel) gearAnalysisPanel.classList.remove('hidden');
+    if (camPanel) camPanel.classList.add('hidden');
+    
+    // Simulate OCR analysis
+    setTimeout(() => {
+      const detectedSlot = simulateGearDetection();
+      const newGearData = generateGearData(detectedSlot);
+      
+      currentAnalysis = {
+        newGearData: newGearData,
+        detectedSlot: detectedSlot
+      };
+      
+      // Update UI with analysis results
+      updateGearAnalysis(detectedSlot, newGearData);
+    }, 1500);
+  }
 }
 
 // Simulate gear type detection (OCR simulation)
@@ -653,6 +659,90 @@ function generateRecommendation(slot, newGearData) {
   }
 }
 
+// Update gear analysis UI for adding gear
+function updateGearAnalysisForAdding(targetSlot, newGearData) {
+  console.log(`Updating UI for adding gear to ${targetSlot}:`, newGearData);
+  
+  // Show analysis panel
+  if (gearAnalysisPanel) gearAnalysisPanel.classList.remove('hidden');
+  if (camPanel) camPanel.classList.add('hidden');
+  
+  // Update current gear info (will be "No gear equipped" for new slots)
+  const currentGear = build[targetSlot];
+  if (currentGearInfo) {
+    if (currentGear) {
+      currentGearInfo.innerHTML = `
+        <p class="gear-name">${currentGear.name}</p>
+        <p class="gear-status">Status: ${currentGear.grade} (${currentGear.score}/100)</p>
+      `;
+    } else {
+      currentGearInfo.innerHTML = `
+        <p class="gear-name">No gear equipped</p>
+        <p class="gear-status">Status: —</p>
+      `;
+    }
+  }
+  
+  // Update new gear info
+  if (newGearInfo) {
+    newGearInfo.innerHTML = `
+      <p class="gear-name">${newGearData.name}</p>
+      <p class="gear-status">Status: ${newGearData.grade} (${newGearData.score}/100)</p>
+    `;
+  }
+  
+  // Generate recommendation for adding gear
+  const recommendation = generateRecommendationForAdding(targetSlot, newGearData);
+  if (recommendationText) {
+    recommendationText.textContent = recommendation.text;
+  }
+  
+  // Enable/disable buttons based on recommendation
+  if (btnSwitch) btnSwitch.disabled = !recommendation.canSwitch;
+  if (btnSalvage) btnSalvage.disabled = !recommendation.canSalvage;
+}
+
+// Generate recommendation logic for adding gear
+function generateRecommendationForAdding(slot, newGearData) {
+  const currentGear = build[slot];
+  const currentScore = currentGear ? (currentGear.score || 0) : 0;
+  const newScore = newGearData.score;
+  
+  if (newScore >= 90) {
+    return {
+      text: `Excellent ${slot}! This is BiS material. Strongly recommend adding.`,
+      canSwitch: true,
+      canSalvage: false
+    };
+  } else if (newScore >= 70) {
+    if (newScore > currentScore + 10) {
+      return {
+        text: `Good ${slot} with better stats than current. Recommend adding.`,
+        canSwitch: true,
+        canSalvage: false
+      };
+    } else {
+      return {
+        text: `Decent ${slot}, but current gear is better. Consider keeping current.`,
+        canSwitch: false,
+        canSalvage: false
+      };
+    }
+  } else if (newScore >= 50) {
+    return {
+      text: `Mediocre ${slot}. Only add if current gear is worse.`,
+      canSwitch: newScore > currentScore,
+      canSalvage: false
+    };
+  } else {
+    return {
+      text: `Poor ${slot}. Recommend salvaging for materials.`,
+      canSwitch: false,
+      canSalvage: true
+    };
+  }
+}
+
 // Handle gear action buttons
 if (btnSwitch) {
   btnSwitch.addEventListener('click', () => {
@@ -672,8 +762,14 @@ if (btnSwitch) {
     // Close analysis panel
     if (gearAnalysisPanel) gearAnalysisPanel.classList.add('hidden');
     
+    // Clear the target slot if we were adding gear
+    if (currentAnalysis.targetSlot) {
+      currentAnalysis.targetSlot = null;
+    }
+    
     // Show success message
-    alert(`✅ ${slot} switched successfully!`);
+    const action = currentAnalysis.targetSlot ? 'added to' : 'switched';
+    alert(`✅ ${slot} ${action} successfully!`);
   });
 }
 
@@ -682,6 +778,11 @@ if (btnSalvage) {
     if (confirm('🗑️ Are you sure you want to salvage this gear?')) {
       alert('🗑️ Gear salvaged for materials.');
       if (gearAnalysisPanel) gearAnalysisPanel.classList.add('hidden');
+      
+      // Clear the target slot if we were adding gear
+      if (currentAnalysis.targetSlot) {
+        currentAnalysis.targetSlot = null;
+      }
     }
   });
 }
@@ -700,5 +801,10 @@ if (btnCancelCam) {
   btnCancelCam.addEventListener('click', () => {
     stopCamera();
     if (gearAnalysisPanel) gearAnalysisPanel.classList.add('hidden');
+    
+    // Clear the target slot if we were adding gear
+    if (currentAnalysis.targetSlot) {
+      currentAnalysis.targetSlot = null;
+    }
   });
 }

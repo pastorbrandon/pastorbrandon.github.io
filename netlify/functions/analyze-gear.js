@@ -66,7 +66,9 @@ export const handler = async (event) => {
         content:
           "You are a Diablo 4 gear analyst for a Hydra Sorcerer. " +
           "Extract clean fields and grade using ONLY the supplied rules. " +
-          "Return STRICT JSON; no markdown."
+          "Return STRICT JSON; no markdown. " +
+          "IMPORTANT: Automatically detect the gear slot type from the image. " +
+          "For rings, use slot 'ring' (we'll handle ring1/ring2 logic separately)."
       },
       {
         role: "user",
@@ -74,10 +76,11 @@ export const handler = async (event) => {
           { type: "text", text:
             "Analyze this Diablo 4 item screenshot. " +
             "Use the RULES JSON to judge for Hydra Sorcerer (Blue/Green/Yellow/Red). " +
-            "Prefer Icy Veins; break ties with reasoning; list improvements to reach Blue." },
+            "Prefer Icy Veins; break ties with reasoning; list improvements to reach Blue. " +
+            "AUTOMATICALLY detect the gear slot type (helm, amulet, chest, gloves, pants, boots, ring, weapon, offhand). " +
+            "For rings, use slot 'ring' (not ring1 or ring2)." },
           // 🔧 IMPORTANT: image_url must be an object with { url }
           { type: "image_url", image_url: { url: image } },
-          { type: "text", text: `SLOT: ${slot || "unknown"}` },
           { type: "text", text: `RULES JSON:\n${JSON.stringify(rules || {})}` }
         ]
       }

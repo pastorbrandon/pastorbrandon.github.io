@@ -1140,54 +1140,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
   
-  // Load demo data
-  const btnLoadDemo = document.getElementById('btn-load-demo');
-  if (btnLoadDemo) {
-    btnLoadDemo.addEventListener('click', async () => {
-      btnLoadDemo.textContent = 'Loading...';
-      btnLoadDemo.disabled = true;
-      
-      try {
-        const resp = await fetch('rulepack.json');
-        const rules = await resp.json();
-        
-        // Cache rules for gear scoring
-        localStorage.setItem('rulepack-cache', JSON.stringify(rules));
-        
-        const rulesDate = document.getElementById('rules-date');
-        const affixJson = document.getElementById('affix-json');
-        const temperingJson = document.getElementById('tempering-json');
-        const mwJson = document.getElementById('mw-json');
-        const skillsList = document.getElementById('skills-list');
-        const paragonList = document.getElementById('paragon-list');
-        
-        if (rulesDate) rulesDate.textContent = rules.sources.updated;
-        if (affixJson) affixJson.textContent = JSON.stringify(rules.slots, null, 2);
-        if (temperingJson) temperingJson.textContent = JSON.stringify(rules.slots, null, 2);
-        if (mwJson) mwJson.textContent = 'Masterworking priorities TBD';
-        if (skillsList) skillsList.innerHTML = '<li>Hydra core; rest per Icy Veins</li>';
-        if (paragonList) paragonList.innerHTML = '<li>Boards & glyphs TBD</li>';
-        
-        btnLoadDemo.textContent = '✓ Loaded';
-        btnLoadDemo.style.background = 'var(--success)';
-        setTimeout(() => {
-          btnLoadDemo.textContent = 'Load Demo Build';
-          btnLoadDemo.style.background = '';
-          btnLoadDemo.disabled = false;
-        }, 1000);
-        
-      } catch (error) {
-        console.error('Error loading demo:', error);
-        btnLoadDemo.textContent = 'Error Loading';
-        btnLoadDemo.style.background = 'var(--error)';
-        setTimeout(() => {
-          btnLoadDemo.textContent = 'Load Demo Build';
-          btnLoadDemo.style.background = '';
-          btnLoadDemo.disabled = false;
-        }, 2000);
-      }
-    });
-  }
+
   
   const btnClearBuild = document.getElementById('btn-clear-build');
   if (btnClearBuild) {

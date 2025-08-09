@@ -11,7 +11,7 @@
 <body>
   <header>
     <h1>Horadric Companion</h1>
-            <p>Hydra Sorcerer Companion (v3.8)</p>
+    <p>Hydra Sorcerer Companion (v4.0)</p>
   </header>
 
   <nav id="tabs">
@@ -26,10 +26,12 @@
 
   <main>
     <section id="gear" class="tab active">
-      <div class="actions">
-        <button id="btn-load-demo">Load Demo Build</button>
+      <div class="prominent-actions">
+        <button id="btn-check-gear" class="btn-check-gear" onclick="console.log('Check Gear clicked via inline handler')">🔍 Check New Gear</button>
+      </div>
+      
+      <div class="secondary-actions">
         <button id="btn-clear-build">Clear Build</button>
-        <button id="btn-check-gear" onclick="console.log('Check Gear clicked via inline handler')">Check New Gear</button>
       </div>
       
       <!-- Gear Analysis Panel -->

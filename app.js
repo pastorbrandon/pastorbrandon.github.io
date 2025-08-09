@@ -60,27 +60,25 @@ async function analyzeWithGPT(dataUrl, slot, rules){
 function validateAnalysisResult(result) {
   if (!result || typeof result !== 'object') return false;
   
-  // Check required fields
+  // Check required fields for new schema
   if (!result.name || !result.slot || !result.status) return false;
   
   // Check that affixes array exists and has content
   if (!Array.isArray(result.affixes)) return false;
   
-  // Check that aspects array exists (can be empty)
-  if (!Array.isArray(result.aspects)) return false;
+  // Check that aspect object exists (new schema uses single aspect object)
+  if (!result.aspect || typeof result.aspect !== 'object') return false;
   
-  // Validate affix objects
+  // Validate affix objects (new schema structure)
   for (const affix of result.affixes) {
     if (typeof affix !== 'object' || !affix.stat || affix.val === undefined) {
       return false;
     }
   }
   
-  // Validate aspect objects (if new format)
-  for (const aspect of result.aspects) {
-    if (typeof aspect === 'object' && (!aspect.name || !aspect.description)) {
-      return false;
-    }
+  // Validate aspect object (new schema structure)
+  if (!result.aspect.name || !result.aspect.source || !result.aspect.text) {
+    return false;
   }
   
   return true;
@@ -294,15 +292,17 @@ function addGearManually(slot) {
 function applyReportToSlot(slot, report) {
   console.log(`Applying report to slot ${slot}:`, report);
   
-  // Handle new aspect format (objects) vs old format (strings)
+  // Handle new aspect format (single object) vs old format (array of objects/strings)
   let processedAspects = [];
-  if (report.aspects && Array.isArray(report.aspects)) {
+  if (report.aspect && typeof report.aspect === 'object') {
+    // New schema: single aspect object
+    processedAspects = [`${report.aspect.name || 'Unknown'}: ${report.aspect.text}`];
+  } else if (report.aspects && Array.isArray(report.aspects)) {
+    // Old format: array of aspects
     processedAspects = report.aspects.map(aspect => {
       if (typeof aspect === 'object' && aspect.name && aspect.description) {
-        // New format: return formatted string
         return `${aspect.name}: ${aspect.description}`;
       } else if (typeof aspect === 'string') {
-        // Old format: keep as is
         return aspect;
       }
       return String(aspect);
@@ -321,8 +321,15 @@ function applyReportToSlot(slot, report) {
     aspects: processedAspects,
     rarity: report.rarity,
     type: report.type,
-    itemLevel: report.itemLevel,
-    notes: report.notes
+    itemLevel: report.item_power || report.itemLevel, // Handle both new and old field names
+    notes: report.notes,
+    // New fields from enhanced schema
+    armor: report.armor,
+    masterwork: report.masterwork,
+    tempers: report.tempers,
+    sockets: report.sockets,
+    gems: report.gems || [],
+    confidence: report.confidence
   };
   
   // Update the build
@@ -624,9 +631,11 @@ function updateGearAnalysis(detectedSlot, newGearData) {
       if (currentGear.affixes && currentGear.affixes.length > 0) {
         currentSpecs += '<div class="gear-affixes"><strong>Affixes:</strong><ul>';
         currentGear.affixes.forEach(affix => {
-          if (typeof affix === 'object' && affix.stat && affix.val) {
-            const affixType = affix.type ? ` (${affix.type})` : '';
-            currentSpecs += `<li>${affix.stat}: ${affix.val}${affixType}</li>`;
+          if (typeof affix === 'object' && affix.stat && affix.val !== undefined) {
+            const unit = affix.unit ? ` ${affix.unit}` : '';
+            const greater = affix.greater ? ' <span class="greater-affix">(Greater)</span>' : '';
+            const tempered = affix.tempered ? ' <span class="tempered-affix">(Tempered)</span>' : '';
+            currentSpecs += `<li>${affix.stat}: ${affix.val}${unit}${greater}${tempered}</li>`;
           } else if (typeof affix === 'string') {
             currentSpecs += `<li>${affix}</li>`;
           }
@@ -634,11 +643,42 @@ function updateGearAnalysis(detectedSlot, newGearData) {
         currentSpecs += '</ul></div>';
       }
       
-      if (currentGear.aspects && currentGear.aspects.length > 0) {
+      // Handle new aspect structure (single object) vs old structure (array)
+      if (currentGear.aspect && typeof currentGear.aspect === 'object') {
+        currentSpecs += '<div class="gear-aspects"><strong>Aspects:</strong><ul>';
+        const sourceText = currentGear.aspect.source === 'imprinted' ? ' (Imprinted)' : 
+                          currentGear.aspect.source === 'unique_base' ? ' (Unique Base)' : '';
+        currentSpecs += `<li>${currentGear.aspect.name || 'Unknown'}${sourceText}: ${currentGear.aspect.text}</li>`;
+        currentSpecs += '</ul></div>';
+      } else if (currentGear.aspects && currentGear.aspects.length > 0) {
         currentSpecs += '<div class="gear-aspects"><strong>Aspects:</strong><ul>';
         currentGear.aspects.forEach(aspect => {
           currentSpecs += `<li>${aspect}</li>`;
         });
+        currentSpecs += '</ul></div>';
+      }
+      
+      // Add new fields from enhanced schema
+      if (currentGear.masterwork && (currentGear.masterwork.rank || currentGear.masterwork.max)) {
+        currentSpecs += '<div class="gear-masterwork"><strong>Masterwork:</strong><ul>';
+        currentSpecs += `<li>Rank: ${currentGear.masterwork.rank || 0}/${currentGear.masterwork.max || 0}</li>`;
+        currentSpecs += '</ul></div>';
+      }
+      
+      if (currentGear.tempers && (currentGear.tempers.used || currentGear.tempers.max)) {
+        currentSpecs += '<div class="gear-tempers"><strong>Tempering:</strong><ul>';
+        currentSpecs += `<li>Used: ${currentGear.tempers.used || 0}/${currentGear.tempers.max || 0}</li>`;
+        currentSpecs += '</ul></div>';
+      }
+      
+      if (currentGear.sockets) {
+        currentSpecs += '<div class="gear-sockets"><strong>Sockets:</strong><ul>';
+        currentSpecs += `<li>Count: ${currentGear.sockets}</li>`;
+        if (currentGear.gems && currentGear.gems.length > 0) {
+          currentGear.gems.forEach(gem => {
+            currentSpecs += `<li>Gem: ${gem}</li>`;
+          });
+        }
         currentSpecs += '</ul></div>';
       }
       
@@ -674,9 +714,11 @@ function updateGearAnalysis(detectedSlot, newGearData) {
     if (newGearData.affixes && newGearData.affixes.length > 0) {
       newSpecs += '<div class="gear-affixes"><strong>Affixes:</strong><ul>';
       newGearData.affixes.forEach(affix => {
-        if (typeof affix === 'object' && affix.stat && affix.val) {
-          const affixType = affix.type ? ` (${affix.type})` : '';
-          newSpecs += `<li>${affix.stat}: ${affix.val}${affixType}</li>`;
+        if (typeof affix === 'object' && affix.stat && affix.val !== undefined) {
+          const unit = affix.unit ? ` ${affix.unit}` : '';
+          const greater = affix.greater ? ' <span class="greater-affix">(Greater)</span>' : '';
+          const tempered = affix.tempered ? ' <span class="tempered-affix">(Tempered)</span>' : '';
+          newSpecs += `<li>${affix.stat}: ${affix.val}${unit}${greater}${tempered}</li>`;
         } else if (typeof affix === 'string') {
           newSpecs += `<li>${affix}</li>`;
         }
@@ -684,11 +726,42 @@ function updateGearAnalysis(detectedSlot, newGearData) {
       newSpecs += '</ul></div>';
     }
     
-    if (newGearData.aspects && newGearData.aspects.length > 0) {
+    // Handle new aspect structure (single object) vs old structure (array)
+    if (newGearData.aspect && typeof newGearData.aspect === 'object') {
+      newSpecs += '<div class="gear-aspects"><strong>Aspects:</strong><ul>';
+      const sourceText = newGearData.aspect.source === 'imprinted' ? ' (Imprinted)' : 
+                        newGearData.aspect.source === 'unique_base' ? ' (Unique Base)' : '';
+      newSpecs += `<li>${newGearData.aspect.name || 'Unknown'}${sourceText}: ${newGearData.aspect.text}</li>`;
+      newSpecs += '</ul></div>';
+    } else if (newGearData.aspects && newGearData.aspects.length > 0) {
       newSpecs += '<div class="gear-aspects"><strong>Aspects:</strong><ul>';
       newGearData.aspects.forEach(aspect => {
         newSpecs += `<li>${aspect}</li>`;
       });
+      newSpecs += '</ul></div>';
+    }
+    
+    // Add new fields from enhanced schema
+    if (newGearData.masterwork && (newGearData.masterwork.rank || newGearData.masterwork.max)) {
+      newSpecs += '<div class="gear-masterwork"><strong>Masterwork:</strong><ul>';
+      newSpecs += `<li>Rank: ${newGearData.masterwork.rank || 0}/${newGearData.masterwork.max || 0}</li>`;
+      newSpecs += '</ul></div>';
+    }
+    
+    if (newGearData.tempers && (newGearData.tempers.used || newGearData.tempers.max)) {
+      newSpecs += '<div class="gear-tempers"><strong>Tempering:</strong><ul>';
+      newSpecs += `<li>Used: ${newGearData.tempers.used || 0}/${newGearData.tempers.max || 0}</li>`;
+      newSpecs += '</ul></div>';
+    }
+    
+    if (newGearData.sockets) {
+      newSpecs += '<div class="gear-sockets"><strong>Sockets:</strong><ul>';
+      newSpecs += `<li>Count: ${newGearData.sockets}</li>`;
+      if (newGearData.gems && newGearData.gems.length > 0) {
+        newGearData.gems.forEach(gem => {
+          newSpecs += `<li>Gem: ${gem}</li>`;
+        });
+      }
       newSpecs += '</ul></div>';
     }
     

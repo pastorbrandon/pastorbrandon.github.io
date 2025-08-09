@@ -949,6 +949,19 @@ footer {
   transform: none;
 }
 
+/* Affix indicators */
+.greater-affix {
+  color: var(--blue);
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.tempered-affix {
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 12px;
+}
+
 /* Comparison styles */
 .comparison-details {
   margin-top: 20px;

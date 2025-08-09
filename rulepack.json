@@ -5,6 +5,21 @@
     "secondary": "Maxroll",
     "updated": "2025-01-27"
   },
+  "synonyms": {
+    "Cooldown Reduction": ["CDR","Cooldown Red.","Cooldown"],
+    "Lucky Hit Chance": ["LHC","Lucky Hit"],
+    "Hydra Ranks": ["+ to Hydra","+X Hydra","+X to Hydra Ranks"],
+    "Lucky Hit Chance (Hydra)": ["Hydra Lucky Hit Chance","LHC Hydra"],
+    "Maximum Life": ["+ Life","Life Max"],
+    "All Stats": ["+ All Stats"],
+    "Armor": ["Total Armor","Armor %? (if % then unit:% else flat)"],
+    "Resource Generation": ["Resource Gen","Mana Generation"],
+    "Movement Speed": ["Move Speed","MS"],
+    "Damage Reduction": ["DR","Damage Red."],
+    "All Resist": ["All Resistance","Resist All"],
+    "Intelligence": ["Int","+ Intelligence"],
+    "Evade Cooldown Reduction": ["Evade CDR","Evade Cooldown Red."]
+  },
   "slots": {
     "Helm": {
       "bis": [

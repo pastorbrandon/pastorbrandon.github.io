@@ -8,6 +8,141 @@ const CORS = {
   "Access-Control-Allow-Headers": "Content-Type"
 };
 
+const MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
+
+// Enhanced system prompt for better Diablo 4 gear analysis
+const PROMPT_SYSTEM = `
+You are a Diablo 4 gear analyst for a Hydra Sorcerer.
+Job: read ONE item screenshot and return STRICT JSON only (no prose). Think silently; output only JSON.
+
+How to parse the UI:
+- Title line: the item name. Text color hints rarity:
+  • Orange ≈ Legendary  • Gold/Yellow ≈ Unique  • (If "Mythic" ever appears, treat as top-tier like Unique.)
+- Subheader often shows tier/type, e.g. "Ancestral Legendary Helm" or "Ancestral Unique Boots".
+- "Imprinted:" line = an imprinted Aspect (from Codex or extracted). If there's no "Imprinted" and it's a Unique, the special power is the base unique aspect.
+- Affixes are the bullet list with +numbers (% or flat). Blue-colored numbers typically indicate a GREATER affix roll.
+- Masterworking/Tempering: look for "Masterwork: X/Y" and "Tempers: X/Y".
+- Sockets/gems may appear as icons; if readable, include a short gem list, else leave empty.
+- Example affixes: "Cooldown Reduction", "Lucky Hit Chance", "+ to Hydra", "Hydra Lucky Hit Chance", "Maximum Life", Resistances, Armor, etc.
+
+Normalization rules (very important):
+- Normalize names to the shortest canonical form used in guides (and in RULES). Examples:
+  "Cooldown Reduction" → "Cooldown Reduction"
+  "Lucky Hit Chance" → "Lucky Hit Chance"
+  "+4 to Hydra" → "Hydra Ranks"
+  "Hydra Lucky Hit Chance" → "Lucky Hit Chance (Hydra)"
+- Parse numeric values to numbers and separate the unit. "12.9%" → { val:12.9, unit:"%" } ; "+4" → { val:4, unit:null }.
+- Mark affix.greater=true when the value text appears blue (or otherwise labeled as a Greater affix).
+- Aspect:
+  • imprinted: { source:"imprinted", name:best guess or null, text:full effect text }
+  • unique base: { source:"unique_base", name:best guess (e.g., "Yen's Blessing"), text:full effect }
+- Rarity: "Legendary" or "Unique" (use the color + wording to decide).
+- Handle typos and OCR artifacts robustly. Prefer layout structure over raw characters.
+
+Grading policy:
+- Use ONLY the provided RULES for the given slot (affix priorities, aspects, tempering lines, thresholds).
+- If Icy Veins and Maxroll differ, prefer Icy Veins; if still tied, choose the safer option and explain in 'reasons'.
+- Status bands: Blue=BiS, Green=Right item but needs work, Yellow=Viable, Red=Replace ASAP.
+- Provide actionable 'improvements' to reach Blue (missing mandatories, better aspect, tempering lines, reroll/masterwork tips).
+
+Return valid JSON that matches the schema exactly. If a field is unknown, include it with null or [] (do not omit required keys).
+`;
+
+// Stricter schema for structured outputs
+const SCHEMA = {
+  name: "GearReport",
+  strict: true,
+  schema: {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      name:      { type: "string" },
+      slot:      { type: "string" },               // normalized slot: helm, amulet, boots, etc.
+      rarity:    { type: "string", enum: ["Legendary","Unique","Mythic","Unknown"] },
+      type:      { type: "string" },               // e.g., "Ancestral Legendary Helm"
+      item_power:{ type: ["number","null"] },
+      armor:     { type: ["number","null"] },
+
+      aspect: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          name:  { type: ["string","null"] },
+          source:{ type: "string", enum: ["imprinted","unique_base","unknown"] },
+          text:  { type: "string" }
+        },
+        required: ["name","source","text"]
+      },
+
+      affixes: {
+        type: "array",
+        items: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            stat:    { type: "string" },           // normalized affix name
+            val:     { type: ["number","null"] },
+            unit:    { type: ["string","null"] },  // "%", "flat", null
+            greater: { type: "boolean" },          // blue-number/greater roll
+            tempered:{ type: "boolean" }           // if clearly tempered
+          },
+          required: ["stat","val","unit","greater","tempered"]
+        }
+      },
+
+      masterwork: {
+        type: "object",
+        additionalProperties: false,
+        properties: { rank: {type:["number","null"]}, max:{type:["number","null"]} },
+        required: ["rank","max"]
+      },
+      tempers: {
+        type: "object",
+        additionalProperties: false,
+        properties: { used:{type:["number","null"]}, max:{type:["number","null"]} },
+        required: ["used","max"]
+      },
+      sockets: { type: ["number","null"] },
+      gems:    { type: "array", items: { type:"string" } },
+
+      // grading
+      status:  { type: "string", enum:["Blue","Green","Yellow","Red"] },
+      score:   { type: ["number","null"] },
+      reasons: { type: "array", items: { type:"string" } },
+      improvements: { type: "array", items: { type:"string" } },
+
+      // debug/quality
+      confidence: { type: ["number","null"] }  // 0..1 overall extraction confidence
+    },
+    required: [
+      "name","slot","rarity","type","item_power","armor",
+      "aspect","affixes","masterwork","tempers","sockets","gems",
+      "status","score","reasons","improvements","confidence"
+    ]
+  }
+};
+
+// Build messages with slot-specific rules
+function buildMessages({ image, slot, rules }) {
+  // Only pass the rules for this slot to cut tokens and sharpen grading
+  const slotKey = (slot || "").toString().trim().toLowerCase();
+  const rulesForSlot = rules?.slots?.[slotKey] || rules?.slots?.[slotKey?.charAt(0).toUpperCase()+slotKey?.slice(1)] || {};
+  return [
+    { role:"system", content: PROMPT_SYSTEM },
+    {
+      role:"user",
+      content: [
+        { type:"text", text:
+          `Task: extract, normalize, and grade this Diablo 4 item for a Hydra Sorcerer.
+           Prefer Icy Veins over Maxroll when in conflict. Return STRICT JSON only.` },
+        { type:"image_url", image_url: { url: image } },
+        { type:"text", text: `Slot hint: ${slot || "unknown"}` },
+        { type:"text", text: `RULES for slot (JSON):\n${JSON.stringify(rulesForSlot || {})}` }
+      ]
+    }
+  ];
+}
+
 // Retry helper for API calls
 async function withRetry(fn, tries = 3) {
   try { return await fn(); }
@@ -29,127 +164,14 @@ export const handler = async (event) => {
     const { image, slot, rules } = JSON.parse(event.body || "{}");
     if (!image) throw new Error("Missing 'image' (dataURL).");
 
-    const schema = {
-      name: "GearReport",
-      schema: {
-        type: "object",
-        properties: {
-          name: { type: "string", description: "Exact item name as shown in the image" },
-          slot: { type: "string", description: "Detected gear slot (helm, amulet, chest, gloves, pants, boots, ring, weapon, offhand)" },
-          rarity: { type: "string", description: "Item rarity (Common, Magic, Rare, Legendary, Unique)" },
-          type: { type: "string", description: "Item type (e.g., 'Helm', 'Ring', 'Staff', 'Focus')" },
-          itemLevel: { type: ["string", "number"], description: "Item level if visible" },
-          affixes: {
-            type: "array",
-            description: "ALL visible affixes with exact values",
-            items: {
-              type: "object",
-              properties: { 
-                stat: { type: "string", description: "Exact stat name as shown" }, 
-                val: { type: ["string","number","null"], description: "Exact value as shown (including ranges like '10-15%')" },
-                type: { type: "string", enum: ["prefix", "suffix", "implicit"], description: "Affix type if discernible" }
-              },
-              required: ["stat", "val"]
-            }
-          },
-          aspects: { 
-            type: "array", 
-            description: "ALL visible aspects with full descriptions",
-            items: { 
-              type: "object",
-              properties: {
-                name: { type: "string", description: "Aspect name (e.g., 'Serpentine Aspect')" },
-                description: { type: "string", description: "Full aspect text as shown on item" },
-                type: { type: "string", enum: ["imprinted", "natural"], description: "Whether aspect was imprinted or is natural" }
-              },
-              required: ["name", "description"]
-            }
-          },
-          status: { type: "string", enum: ["Blue","Green","Yellow","Red"], description: "Quality assessment" },
-          score: { type: "number", description: "Numerical score 0-100" },
-          reasons: { type: "array", items: { type: "string" }, description: "Detailed reasoning for score" },
-          improvements: { type: "array", items: { type: "string" }, description: "Specific improvement suggestions" },
-          notes: { type: "string", description: "Any additional observations about the item" }
-        },
-        required: ["name","slot","status","reasons","affixes","aspects"]
-      }
-    };
-
-    const MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
-
-    const messages = [
-      {
-        role: "system",
-        content:
-          "You are a Diablo 4 gear analyst specializing in Hydra Sorcerer builds. Your job is to provide COMPLETE and ACCURATE analysis of gear items.\n\n" +
-          "CRITICAL REQUIREMENTS:\n" +
-          "1. ONLY report what you can ACTUALLY SEE in the image. Do NOT guess, assume, or make up information.\n" +
-          "2. If you cannot clearly read an affix, aspect, or stat, do NOT include it.\n" +
-          "3. Capture EVERY visible detail - missing information can lead to incorrect comparisons.\n" +
-          "4. Be extremely precise with values, ranges, and percentages.\n\n" +
-          "AFFIX ANALYSIS:\n" +
-          "- Extract ALL visible affixes with their EXACT values\n" +
-          "- Include ranges (e.g., '10-15%') exactly as shown\n" +
-          "- Distinguish between prefixes, suffixes, and implicits if possible\n" +
-          "- Do not skip any affix, even if it seems minor\n\n" +
-          "ASPECT DETECTION:\n" +
-          "- Look for TWO types of aspects:\n" +
-          "  1) IMPRINTED aspects (shown after 'Imprinted' text) - manually added\n" +
-          "  2) NATURAL aspects (shown with orange star ★ and orange text) - came with item\n" +
-          "- Aspects use predominantly ORANGE text with some WHITE words\n" +
-          "- IMPORTANT: Aspects can appear anywhere on the item, including after 'Lucky Hit' indicators\n" +
-          "- Lucky Hit effects can be either regular affixes OR aspects - look for orange text\n" +
-          "- If you see orange text that describes a special effect or power, it's likely an aspect\n" +
-          "- Pay special attention to any orange text after 'Lucky Hit' - it might be an aspect\n" +
-          "- Common aspect keywords: 'Aspect', 'Effect', 'Power', 'Ability', 'Skill'\n" +
-          "- Reference known Hydra Sorcerer aspects: Serpentine Aspect, Storm Swell Aspect, Snowveiled Aspect, Flash Fire Aspect, Aspect of Shredding Blades, Aspect of Concentration, Everliving Aspect, Aspect of the Orange Herald, Conceited Aspect, Battle Caster's Aspect, Aspect of Concentration, etc.\n" +
-          "- Extract the ASPECT NAME and include the FULL TEXT description\n" +
-          "- Example: {name: 'Serpentine Aspect', description: 'Hydras deal 0.5-1.5% increased damage per Mana when summoned', type: 'imprinted'}\n" +
-          "- Include ALL aspects you can see, whether imprinted or natural\n" +
-          "- If you're unsure whether something is an aspect, include it - better to be thorough\n\n" +
-          "ITEM IDENTIFICATION:\n" +
-          "- Automatically detect gear slot type from the image\n" +
-          "- For rings, use slot 'ring' (not ring1/ring2)\n" +
-          "- Include item level if visible\n" +
-          "- Note item rarity and type\n\n" +
-          "QUALITY ASSESSMENT:\n" +
-          "- Reference Icy Veins and Maxroll guides for Hydra Sorcerer recommendations\n" +
-          "- Consider mandatory affixes, preferred affixes, and aspects for the slot\n" +
-          "- Provide detailed reasoning for your score\n" +
-          "- Suggest specific improvements\n\n" +
-          "Return STRICT JSON following the schema exactly. No markdown formatting."
-      },
-      {
-        role: "user",
-        content: [
-          { type: "text", text:
-            "Analyze this Diablo 4 item screenshot with EXTREME attention to detail.\n\n" +
-            "REQUIREMENTS:\n" +
-            "1. Capture EVERY visible affix with exact values\n" +
-            "2. Identify ALL aspects (imprinted and natural) with full descriptions\n" +
-            "   - Look for orange text that describes special effects or powers\n" +
-            "   - Aspects can appear anywhere, including after 'Lucky Hit' indicators\n" +
-            "   - Lucky Hit effects can be either regular affixes OR aspects - check for orange text\n" +
-            "   - If you see orange text that seems like a special ability, include it as an aspect\n" +
-            "   - Pay extra attention to any orange text after 'Lucky Hit' - it might be an aspect\n" +
-            "3. Detect the gear slot automatically\n" +
-            "4. Include item level, rarity, and type if visible\n" +
-            "5. Provide detailed scoring and reasoning\n\n" +
-            "Use the RULES JSON to evaluate for Hydra Sorcerer build.\n" +
-            "Reference Icy Veins and Maxroll guides for accurate recommendations.\n" +
-            "Be thorough - missing details can lead to incorrect gear comparisons." },
-          { type: "image_url", image_url: { url: image } },
-          { type: "text", text: `RULES JSON:\n${JSON.stringify(rules || {})}` }
-        ]
-      }
-    ];
-
+    const messages = buildMessages({ image, slot, rules });
+    
     const resp = await withRetry(() => client.chat.completions.create({
       model: MODEL,
       messages,
-      response_format: { type: "json_schema", json_schema: schema },
-      max_tokens: 800, // Increased for more detailed responses
-      temperature: 0.05 // Very low temperature for consistent, precise responses
+      response_format: { type: "json_schema", json_schema: SCHEMA },
+      max_tokens: 500,
+      temperature: 0.2
     }));
 
     const content = resp.choices?.[0]?.message?.content || "{}";

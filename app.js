@@ -14,6 +14,53 @@ window.addEventListener('unhandledrejection', (event) => {
   console.error('Unhandled promise rejection:', event.reason);
 });
 
+// Function URL for Netlify
+const FN_URL = location.hostname.endsWith('netlify.app')
+  ? '/.netlify/functions/analyze-gear'
+  : 'https://d4companion.netlify.app/.netlify/functions/analyze-gear';
+
+// Helper functions
+async function fileToDataUrl(file, max=1280, q=0.85){
+  const dataUrl = await new Promise(r => { 
+    const fr=new FileReader(); 
+    fr.onload=()=>r(fr.result); 
+    fr.readAsDataURL(file); 
+  });
+  return resizeDataUrl(dataUrl, max, q);
+}
+
+function resizeDataUrl(dataUrl, max=1280, q=0.85){
+  return new Promise(res=>{
+    const img=new Image(); 
+    img.onload=()=>{ 
+      let w=img.width,h=img.height;
+      if (w>h && w>max){ 
+        h=Math.round(h*(max/w)); 
+        w=max; 
+      } else if (h>=w && h>max){ 
+        w=Math.round(w*(max/h)); 
+        h=max; 
+      }
+      const c=document.createElement('canvas'); 
+      c.width=w; 
+      c.height=h; 
+      c.getContext('2d').drawImage(img,0,0,w,h);
+      res(c.toDataURL('image/jpeg', q));
+    }; 
+    img.src=dataUrl;
+  });
+}
+
+async function analyzeWithGPT(dataUrl, slot, rules){
+  const r = await fetch(FN_URL, {
+    method:'POST', 
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ image:dataUrl, slot, rules })
+  });
+  if(!r.ok) throw new Error(await r.text());
+  return r.json(); // { name, status, reasons, improvements, ... }
+}
+
 // Configuration
 const CONFIG = {
   OPENAI_API_KEY: null // No longer needed - handled by backend
@@ -336,6 +383,40 @@ function addGearManually(slot) {
   openFilePicker();
 }
 
+// Apply analysis report to a slot
+function applyReportToSlot(slot, report) {
+  console.log(`Applying report to slot ${slot}:`, report);
+  
+  // Convert the report format to our app's format
+  const gearData = {
+    name: report.name,
+    affixes: report.affixes.map(affix => affix.stat),
+    score: report.score || 0,
+    grade: report.status.toLowerCase(),
+    slot: report.slot,
+    reasons: report.reasons,
+    improvements: report.improvements
+  };
+  
+  // Update the build
+  build[slot] = gearData;
+  saveBuild(build);
+  
+  // Update the display
+  updateGearDisplay(slot, gearData);
+  
+  // Show success message
+  alert(`✅ ${report.name} analyzed and equipped to ${slot}!`);
+  
+  // Clear the analysis state
+  currentAnalysis = {
+    newGearData: null,
+    detectedSlot: null,
+    targetSlot: null,
+    directEquip: false
+  };
+}
+
 // Function to open native file picker
 function openFilePicker() {
   // Create a hidden file input
@@ -344,16 +425,56 @@ function openFilePicker() {
   fileInput.accept = 'image/*';
   fileInput.capture = 'environment'; // This enables camera on mobile
   
-  fileInput.addEventListener('change', (event) => {
+  fileInput.addEventListener('change', async (event) => {
     const file = event.target.files[0];
     if (file) {
-      // Convert file to data URL
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        lastCaptureDataUrl = e.target.result;
-        analyzeGear();
-      };
-      reader.readAsDataURL(file);
+      try {
+        const slot = currentAnalysis.targetSlot;
+        console.log(`Processing image for slot: ${slot}`);
+        
+        // Show loading status
+        const slotElement = document.querySelector(`[data-slot="${slot}"]`);
+        if (slotElement) {
+          const gearName = slotElement.querySelector('.gear-name');
+          if (gearName) {
+            gearName.textContent = 'Analyzing...';
+            gearName.setAttribute('data-grade', 'analyzing');
+          }
+        }
+        
+        // Convert and resize image
+        const dataUrl = await fileToDataUrl(file, 1280, 0.85);
+        
+        // Load rules
+        let rules = {};
+        try {
+          const resp = await fetch('rulepack.json');
+          rules = await resp.json();
+        } catch (error) {
+          console.warn('Could not load rulepack:', error);
+        }
+        
+        // Analyze with GPT
+        const report = await analyzeWithGPT(dataUrl, slot, rules);
+        console.log('Analysis report:', report);
+        
+        // Apply the report to the slot
+        applyReportToSlot(slot, report);
+        
+      } catch (error) {
+        console.error('Analysis failed:', error);
+        alert('Analysis failed: ' + (error.message || error));
+        
+        // Reset slot status
+        const slotElement = document.querySelector(`[data-slot="${currentAnalysis.targetSlot}"]`);
+        if (slotElement) {
+          const gearName = slotElement.querySelector('.gear-name');
+          if (gearName) {
+            gearName.textContent = 'No gear equipped';
+            gearName.setAttribute('data-grade', 'unscored');
+          }
+        }
+      }
     }
   });
   
@@ -937,6 +1058,107 @@ if (btnSalvage) {
 //     openFilePicker();
 //   });
 // }
+
+// Hook up Check New Gear button
+const btnCheckGear = document.getElementById('btn-check-gear');
+if (btnCheckGear) {
+  btnCheckGear.addEventListener('click', async () => {
+    try {
+      // Prompt user for gear slot
+      const slot = await promptForGearSlot();
+      if (!slot) {
+        alert('❌ Gear analysis cancelled. Could not determine gear type.');
+        return;
+      }
+      
+      // Set up analysis state
+      currentAnalysis = {
+        newGearData: null,
+        detectedSlot: slot,
+        targetSlot: null,
+        directEquip: false
+      };
+      
+      // Open file picker for analysis
+      openFilePickerForAnalysis();
+      
+    } catch (error) {
+      console.error('Error starting gear analysis:', error);
+      alert('Error starting gear analysis: ' + error.message);
+    }
+  });
+}
+
+// Function to open file picker for analysis (not direct equip)
+function openFilePickerForAnalysis() {
+  const fileInput = document.createElement('input');
+  fileInput.type = 'file';
+  fileInput.accept = 'image/*';
+  fileInput.capture = 'environment';
+  
+  fileInput.addEventListener('change', async (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      try {
+        const slot = currentAnalysis.detectedSlot;
+        console.log(`Analyzing gear for slot: ${slot}`);
+        
+        // Show analysis panel
+        if (gearAnalysisPanel) gearAnalysisPanel.classList.remove('hidden');
+        
+        // Update new gear info
+        if (newGearInfo) {
+          newGearInfo.innerHTML = `
+            <p class="gear-name">Analyzing...</p>
+            <p class="gear-status">Status: Processing</p>
+          `;
+        }
+        
+        // Convert and resize image
+        const dataUrl = await fileToDataUrl(file, 1280, 0.85);
+        
+        // Load rules
+        let rules = {};
+        try {
+          const resp = await fetch('rulepack.json');
+          rules = await resp.json();
+        } catch (error) {
+          console.warn('Could not load rulepack:', error);
+        }
+        
+        // Analyze with GPT
+        const report = await analyzeWithGPT(dataUrl, slot, rules);
+        console.log('Analysis report:', report);
+        
+        // Convert report to our format
+        const gearData = {
+          name: report.name,
+          affixes: report.affixes.map(affix => affix.stat),
+          score: report.score || 0,
+          grade: report.status.toLowerCase(),
+          slot: report.slot,
+          reasons: report.reasons,
+          improvements: report.improvements
+        };
+        
+        // Update analysis state
+        currentAnalysis.newGearData = gearData;
+        
+        // Update the analysis panel
+        updateGearAnalysis(slot, gearData);
+        
+      } catch (error) {
+        console.error('Analysis failed:', error);
+        alert('Analysis failed: ' + (error.message || error));
+        
+        // Hide analysis panel
+        if (gearAnalysisPanel) gearAnalysisPanel.classList.add('hidden');
+      }
+    }
+  });
+  
+  fileInput.click();
+}
 
 // if (btnCapture) { // btnCapture is removed
 // btnCapture.addEventListener('click', captureFrame);

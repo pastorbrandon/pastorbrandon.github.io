@@ -828,6 +828,100 @@ footer {
   transform: none;
 }
 
+/* Comparison styles */
+.comparison-details {
+  margin-top: 20px;
+  padding: 16px;
+  background: var(--card);
+  border-radius: 12px;
+  border: 1px solid var(--border);
+}
+
+.comparison-details h4 {
+  margin: 0 0 16px 0;
+  color: var(--accent);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.comparison-grid {
+  display: grid;
+  gap: 20px;
+}
+
+.comparison-section {
+  background: var(--bg);
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+.comparison-section h5 {
+  margin: 0 0 12px 0;
+  color: var(--fg);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.matching-affixes, .current-only, .new-only, .current-aspects, .new-aspects {
+  margin-bottom: 12px;
+}
+
+.matching-affixes strong, .current-only strong, .new-only strong, 
+.current-aspects strong, .new-aspects strong {
+  color: var(--accent);
+  font-size: 13px;
+}
+
+.matching-affixes ul, .current-only ul, .new-only ul,
+.current-aspects ul, .new-aspects ul {
+  margin: 8px 0;
+  padding-left: 20px;
+}
+
+.matching-affixes li, .current-only li, .new-only li,
+.current-aspects li, .new-aspects li {
+  margin: 4px 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.current-only li {
+  color: var(--red);
+}
+
+.new-only li {
+  color: var(--green);
+}
+
+.gear-details, .gear-affixes, .gear-aspects, .gear-notes {
+  margin-bottom: 16px;
+}
+
+.gear-details strong, .gear-affixes strong, .gear-aspects strong, .gear-notes strong {
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.gear-details ul, .gear-affixes ul, .gear-aspects ul {
+  margin: 8px 0;
+  padding-left: 20px;
+}
+
+.gear-details li, .gear-affixes li, .gear-aspects li {
+  margin: 4px 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.gear-notes p {
+  margin: 8px 0;
+  font-size: 13px;
+  color: var(--muted);
+  font-style: italic;
+}
+
 /* Enhanced camera styles */
 .camera h3 {
   margin: 0 0 16px 0;

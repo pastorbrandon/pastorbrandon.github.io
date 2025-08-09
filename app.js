@@ -45,7 +45,45 @@ async function analyzeWithGPT(dataUrl, slot, rules){
     body: JSON.stringify({ image:dataUrl, slot, rules })
   });
   if(!r.ok) throw new Error(await r.text());
-  return r.json();
+  
+  const result = await r.json();
+  
+  // Validate the analysis result
+  if (!validateAnalysisResult(result)) {
+    throw new Error('Analysis result is incomplete or invalid. Please try again with a clearer image.');
+  }
+  
+  return result;
+}
+
+// Validate analysis result completeness
+function validateAnalysisResult(result) {
+  if (!result || typeof result !== 'object') return false;
+  
+  // Check required fields
+  if (!result.name || !result.slot || !result.status) return false;
+  
+  // Check that affixes array exists and has content
+  if (!Array.isArray(result.affixes)) return false;
+  
+  // Check that aspects array exists (can be empty)
+  if (!Array.isArray(result.aspects)) return false;
+  
+  // Validate affix objects
+  for (const affix of result.affixes) {
+    if (typeof affix !== 'object' || !affix.stat || affix.val === undefined) {
+      return false;
+    }
+  }
+  
+  // Validate aspect objects (if new format)
+  for (const aspect of result.aspects) {
+    if (typeof aspect === 'object' && (!aspect.name || !aspect.description)) {
+      return false;
+    }
+  }
+  
+  return true;
 }
 
 // Local storage keys
@@ -249,16 +287,35 @@ function addGearManually(slot) {
 function applyReportToSlot(slot, report) {
   console.log(`Applying report to slot ${slot}:`, report);
   
+  // Handle new aspect format (objects) vs old format (strings)
+  let processedAspects = [];
+  if (report.aspects && Array.isArray(report.aspects)) {
+    processedAspects = report.aspects.map(aspect => {
+      if (typeof aspect === 'object' && aspect.name && aspect.description) {
+        // New format: return formatted string
+        return `${aspect.name}: ${aspect.description}`;
+      } else if (typeof aspect === 'string') {
+        // Old format: keep as is
+        return aspect;
+      }
+      return String(aspect);
+    });
+  }
+  
   // Convert the report format to our app's format
   const gearData = {
     name: report.name,
-    affixes: report.affixes, // Keep full affix objects with stat and val
+    affixes: report.affixes || [], // Keep full affix objects with stat and val
     score: report.score || 0,
     grade: report.status.toLowerCase(),
     slot: report.slot,
-    reasons: report.reasons,
-    improvements: report.improvements,
-    aspects: report.aspects || [] // Store aspects from AI report
+    reasons: report.reasons || [],
+    improvements: report.improvements || [],
+    aspects: processedAspects,
+    rarity: report.rarity,
+    type: report.type,
+    itemLevel: report.itemLevel,
+    notes: report.notes
   };
   
   // Update the build
@@ -293,29 +350,52 @@ function scoreGear(slot, gearData) {
     let score = 0;
     const mandatoryAffixes = slotRules.mandatoryAffixes || [];
     const preferredAffixes = slotRules.preferredAffixes || [];
+    const preferredAspects = slotRules.aspects || [];
     
-    // Check mandatory affixes (40 points each)
+    // Check mandatory affixes (35 points each)
     mandatoryAffixes.forEach(affix => {
       if (gearData.affixes.some(g => {
         const affixText = typeof g === 'object' ? g.stat : g;
         return affixText.toLowerCase().includes(affix.toLowerCase());
       })) {
-        score += 40;
+        score += 35;
       }
     });
     
-    // Check preferred affixes (15 points each)
+    // Check preferred affixes (12 points each)
     preferredAffixes.forEach(affix => {
       if (gearData.affixes.some(g => {
         const affixText = typeof g === 'object' ? g.stat : g;
         return affixText.toLowerCase().includes(affix.toLowerCase());
       })) {
-        score += 15;
+        score += 12;
       }
     });
     
-    // Bonus for having more affixes (up to 20 points)
-    score += Math.min(gearData.affixes.length * 5, 20);
+    // Check aspects (15 points each for preferred aspects)
+    if (gearData.aspects && gearData.aspects.length > 0) {
+      preferredAspects.forEach(preferredAspect => {
+        if (gearData.aspects.some(aspect => {
+          const aspectText = typeof aspect === 'string' ? aspect : aspect.name || '';
+          return aspectText.toLowerCase().includes(preferredAspect.toLowerCase());
+        })) {
+          score += 15;
+        }
+      });
+      
+      // Bonus for having any aspects (5 points each, up to 10)
+      score += Math.min(gearData.aspects.length * 5, 10);
+    }
+    
+    // Bonus for having more affixes (up to 15 points)
+    score += Math.min(gearData.affixes.length * 3, 15);
+    
+    // Bonus for high item level (if available)
+    if (gearData.itemLevel && typeof gearData.itemLevel === 'number') {
+      if (gearData.itemLevel >= 925) score += 5;
+      else if (gearData.itemLevel >= 900) score += 3;
+      else if (gearData.itemLevel >= 850) score += 1;
+    }
     
     return Math.min(score, 100);
   } catch (error) {
@@ -363,11 +443,22 @@ function showGearModal(slot) {
   
   // Build stats HTML with affix values
   let statsHtml = '';
+  
+  // Add item details
+  if (gearData.rarity || gearData.type || gearData.itemLevel) {
+    statsHtml += '<h4>Item Details:</h4><ul>';
+    if (gearData.rarity) statsHtml += `<li>Rarity: ${gearData.rarity}</li>`;
+    if (gearData.type) statsHtml += `<li>Type: ${gearData.type}</li>`;
+    if (gearData.itemLevel) statsHtml += `<li>Item Level: ${gearData.itemLevel}</li>`;
+    statsHtml += '</ul>';
+  }
+  
   if (gearData.affixes && gearData.affixes.length > 0) {
     statsHtml += '<h4>Affixes:</h4><ul>';
     gearData.affixes.forEach(affix => {
       if (typeof affix === 'object' && affix.stat && affix.val) {
-        statsHtml += `<li>${affix.stat}: ${affix.val}</li>`;
+        const affixType = affix.type ? ` (${affix.type})` : '';
+        statsHtml += `<li>${affix.stat}: ${affix.val}${affixType}</li>`;
       } else if (typeof affix === 'string') {
         statsHtml += `<li>${affix}</li>`;
       }
@@ -382,6 +473,11 @@ function showGearModal(slot) {
       statsHtml += `<li>${aspect}</li>`;
     });
     statsHtml += '</ul>';
+  }
+  
+  // Add notes if present
+  if (gearData.notes) {
+    statsHtml += '<h4>Notes:</h4><p>' + gearData.notes + '</p>';
   }
   
   if (modalGearStats) modalGearStats.innerHTML = statsHtml;
@@ -506,11 +602,22 @@ function updateGearAnalysis(detectedSlot, newGearData) {
     if (currentGear) {
       // Build detailed specs for current gear
       let currentSpecs = '';
+      
+      // Add item details
+      if (currentGear.rarity || currentGear.type || currentGear.itemLevel) {
+        currentSpecs += '<div class="gear-details"><strong>Details:</strong><ul>';
+        if (currentGear.rarity) currentSpecs += `<li>Rarity: ${currentGear.rarity}</li>`;
+        if (currentGear.type) currentSpecs += `<li>Type: ${currentGear.type}</li>`;
+        if (currentGear.itemLevel) currentSpecs += `<li>Item Level: ${currentGear.itemLevel}</li>`;
+        currentSpecs += '</ul></div>';
+      }
+      
       if (currentGear.affixes && currentGear.affixes.length > 0) {
         currentSpecs += '<div class="gear-affixes"><strong>Affixes:</strong><ul>';
         currentGear.affixes.forEach(affix => {
           if (typeof affix === 'object' && affix.stat && affix.val) {
-            currentSpecs += `<li>${affix.stat}: ${affix.val}</li>`;
+            const affixType = affix.type ? ` (${affix.type})` : '';
+            currentSpecs += `<li>${affix.stat}: ${affix.val}${affixType}</li>`;
           } else if (typeof affix === 'string') {
             currentSpecs += `<li>${affix}</li>`;
           }
@@ -545,11 +652,22 @@ function updateGearAnalysis(detectedSlot, newGearData) {
   if (newGearInfo) {
     // Build detailed specs for new gear
     let newSpecs = '';
+    
+    // Add item details
+    if (newGearData.rarity || newGearData.type || newGearData.itemLevel) {
+      newSpecs += '<div class="gear-details"><strong>Details:</strong><ul>';
+      if (newGearData.rarity) newSpecs += `<li>Rarity: ${newGearData.rarity}</li>`;
+      if (newGearData.type) newSpecs += `<li>Type: ${newGearData.type}</li>`;
+      if (newGearData.itemLevel) newSpecs += `<li>Item Level: ${newGearData.itemLevel}</li>`;
+      newSpecs += '</ul></div>';
+    }
+    
     if (newGearData.affixes && newGearData.affixes.length > 0) {
       newSpecs += '<div class="gear-affixes"><strong>Affixes:</strong><ul>';
       newGearData.affixes.forEach(affix => {
         if (typeof affix === 'object' && affix.stat && affix.val) {
-          newSpecs += `<li>${affix.stat}: ${affix.val}</li>`;
+          const affixType = affix.type ? ` (${affix.type})` : '';
+          newSpecs += `<li>${affix.stat}: ${affix.val}${affixType}</li>`;
         } else if (typeof affix === 'string') {
           newSpecs += `<li>${affix}</li>`;
         }
@@ -565,6 +683,11 @@ function updateGearAnalysis(detectedSlot, newGearData) {
       newSpecs += '</ul></div>';
     }
     
+    // Add notes if present
+    if (newGearData.notes) {
+      newSpecs += '<div class="gear-notes"><strong>Notes:</strong><p>' + newGearData.notes + '</p></div>';
+    }
+    
     newGearInfo.innerHTML = `
       <p class="gear-name">${newGearData.name}</p>
       <p class="gear-status">Status: ${newGearData.grade} (${newGearData.score}/100)</p>
@@ -576,12 +699,17 @@ function updateGearAnalysis(detectedSlot, newGearData) {
   const recommendation = generateRecommendation(detectedSlot, newGearData);
   const recommendationReasons = document.getElementById('recommendationReasons');
   if (recommendationReasons) {
+    const comparisonDetails = generateDetailedComparison(currentGear, newGearData);
     recommendationReasons.innerHTML = `
       <p id="recommendationText">${recommendation.text}</p>
       <div class="recommendation-details">
         <ul>
           ${recommendation.reasons.map(reason => `<li>• ${reason}</li>`).join('')}
         </ul>
+      </div>
+      <div class="comparison-details">
+        <h4>Detailed Comparison:</h4>
+        ${comparisonDetails}
       </div>
     `;
   }
@@ -601,6 +729,148 @@ function updateGearAnalysis(detectedSlot, newGearData) {
     btnDiscard.textContent = '🗑️ Discard';
     btnDiscard.className = 'btn-secondary';
   }
+}
+
+// Generate detailed comparison between current and new gear
+function generateDetailedComparison(currentGear, newGearData) {
+  if (!currentGear) {
+    return '<p>No current gear to compare against.</p>';
+  }
+  
+  let comparisonHtml = '<div class="comparison-grid">';
+  
+  // Compare affixes
+  comparisonHtml += '<div class="comparison-section">';
+  comparisonHtml += '<h5>Affix Comparison:</h5>';
+  
+  const currentAffixes = currentGear.affixes || [];
+  const newAffixes = newGearData.affixes || [];
+  
+  // Find matching affixes
+  const matchingAffixes = [];
+  const currentOnly = [];
+  const newOnly = [];
+  
+  currentAffixes.forEach(currentAffix => {
+    const currentStat = typeof currentAffix === 'object' ? currentAffix.stat : currentAffix;
+    const found = newAffixes.find(newAffix => {
+      const newStat = typeof newAffix === 'object' ? newAffix.stat : newAffix;
+      return currentStat.toLowerCase().includes(newStat.toLowerCase()) || 
+             newStat.toLowerCase().includes(currentStat.toLowerCase());
+    });
+    
+    if (found) {
+      matchingAffixes.push({ current: currentAffix, new: found });
+    } else {
+      currentOnly.push(currentAffix);
+    }
+  });
+  
+  newAffixes.forEach(newAffix => {
+    const newStat = typeof newAffix === 'object' ? newAffix.stat : newAffix;
+    const found = currentAffixes.find(currentAffix => {
+      const currentStat = typeof currentAffix === 'object' ? currentAffix.stat : currentAffix;
+      return currentStat.toLowerCase().includes(newStat.toLowerCase()) || 
+             newStat.toLowerCase().includes(currentStat.toLowerCase());
+    });
+    
+    if (!found) {
+      newOnly.push(newAffix);
+    }
+  });
+  
+  // Display matching affixes
+  if (matchingAffixes.length > 0) {
+    comparisonHtml += '<div class="matching-affixes"><strong>Matching Affixes:</strong><ul>';
+    matchingAffixes.forEach(({ current, new: newAffix }) => {
+      const currentVal = typeof current === 'object' ? current.val : 'N/A';
+      const newVal = typeof newAffix === 'object' ? newAffix.val : 'N/A';
+      const currentStat = typeof current === 'object' ? current.stat : current;
+      const change = currentVal !== newVal ? ` → ${newVal}` : ' (same)';
+      comparisonHtml += `<li>${currentStat}: ${currentVal}${change}</li>`;
+    });
+    comparisonHtml += '</ul></div>';
+  }
+  
+  // Display unique affixes
+  if (currentOnly.length > 0) {
+    comparisonHtml += '<div class="current-only"><strong>Current Only:</strong><ul>';
+    currentOnly.forEach(affix => {
+      const stat = typeof affix === 'object' ? affix.stat : affix;
+      const val = typeof affix === 'object' ? affix.val : '';
+      comparisonHtml += `<li>${stat}${val ? ': ' + val : ''}</li>`;
+    });
+    comparisonHtml += '</ul></div>';
+  }
+  
+  if (newOnly.length > 0) {
+    comparisonHtml += '<div class="new-only"><strong>New Only:</strong><ul>';
+    newOnly.forEach(affix => {
+      const stat = typeof affix === 'object' ? affix.stat : affix;
+      const val = typeof affix === 'object' ? affix.val : '';
+      comparisonHtml += `<li>${stat}${val ? ': ' + val : ''}</li>`;
+    });
+    comparisonHtml += '</ul></div>';
+  }
+  
+  comparisonHtml += '</div>';
+  
+  // Compare aspects
+  comparisonHtml += '<div class="comparison-section">';
+  comparisonHtml += '<h5>Aspect Comparison:</h5>';
+  
+  const currentAspects = currentGear.aspects || [];
+  const newAspects = newGearData.aspects || [];
+  
+  if (currentAspects.length > 0 || newAspects.length > 0) {
+    if (currentAspects.length > 0) {
+      comparisonHtml += '<div class="current-aspects"><strong>Current Aspects:</strong><ul>';
+      currentAspects.forEach(aspect => {
+        comparisonHtml += `<li>${aspect}</li>`;
+      });
+      comparisonHtml += '</ul></div>';
+    }
+    
+    if (newAspects.length > 0) {
+      comparisonHtml += '<div class="new-aspects"><strong>New Aspects:</strong><ul>';
+      newAspects.forEach(aspect => {
+        comparisonHtml += `<li>${aspect}</li>`;
+      });
+      comparisonHtml += '</ul></div>';
+    }
+  } else {
+    comparisonHtml += '<p>No aspects on either item.</p>';
+  }
+  
+  comparisonHtml += '</div>';
+  
+  // Compare item details
+  comparisonHtml += '<div class="comparison-section">';
+  comparisonHtml += '<h5>Item Details:</h5>';
+  
+  const details = [];
+  if (currentGear.itemLevel && newGearData.itemLevel) {
+    details.push(`Item Level: ${currentGear.itemLevel} → ${newGearData.itemLevel}`);
+  }
+  if (currentGear.rarity && newGearData.rarity) {
+    details.push(`Rarity: ${currentGear.rarity} → ${newGearData.rarity}`);
+  }
+  if (currentGear.type && newGearData.type) {
+    details.push(`Type: ${currentGear.type} → ${newGearData.type}`);
+  }
+  
+  if (details.length > 0) {
+    comparisonHtml += '<ul>';
+    details.forEach(detail => comparisonHtml += `<li>${detail}</li>`);
+    comparisonHtml += '</ul>';
+  } else {
+    comparisonHtml += '<p>No item details to compare.</p>';
+  }
+  
+  comparisonHtml += '</div>';
+  comparisonHtml += '</div>';
+  
+  return comparisonHtml;
 }
 
 // Generate recommendation logic - DECISIVE VERSION WITH REASONING

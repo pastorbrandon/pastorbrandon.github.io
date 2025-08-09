@@ -532,50 +532,81 @@ function updateGearAnalysis(detectedSlot, newGearData) {
     recommendationText.textContent = recommendation.text;
   }
   
-  // Enable/disable buttons based on recommendation
+  // Enable/disable switch button based on recommendation
   const btnSwitch = document.getElementById('btn-switch');
-  const btnSalvage = document.getElementById('btn-salvage');
-  if (btnSwitch) btnSwitch.disabled = !recommendation.canSwitch;
-  if (btnSalvage) btnSalvage.disabled = !recommendation.canSalvage;
+  if (btnSwitch) {
+    btnSwitch.disabled = !recommendation.canSwitch;
+    if (recommendation.action === 'switch') {
+      btnSwitch.textContent = '✅ Switch';
+      btnSwitch.className = 'btn-primary';
+    } else {
+      btnSwitch.textContent = '✅ Switch';
+      btnSwitch.className = 'btn-primary';
+      btnSwitch.disabled = true;
+    }
+  }
 }
 
-// Generate recommendation logic
+// Generate recommendation logic - DECISIVE VERSION
 function generateRecommendation(slot, newGearData) {
   const currentGear = build[slot];
   const currentScore = currentGear ? (currentGear.score || 0) : 0;
   const newScore = newGearData.score;
   
+  // Clear, decisive recommendations
   if (newScore >= 90) {
     return {
-      text: `Excellent ${slot}! This is BiS material. Strongly recommend switching.`,
-      canSwitch: true,
-      canSalvage: false
+      text: `🔥 SWITCH - This is BiS (Best in Slot) material! Score: ${newScore}/100`,
+      action: 'switch',
+      canSwitch: true
     };
-  } else if (newScore >= 70) {
-    if (newScore > currentScore + 10) {
+  } else if (newScore >= 80) {
+    if (newScore > currentScore + 5) {
       return {
-        text: `Good ${slot} with better stats than current. Recommend switching.`,
-        canSwitch: true,
-        canSalvage: false
+        text: `✅ SWITCH - Excellent upgrade! New: ${newScore}/100 vs Current: ${currentScore}/100`,
+        action: 'switch',
+        canSwitch: true
       };
     } else {
       return {
-        text: `Decent ${slot}, but current gear is better. Consider keeping current.`,
-        canSwitch: false,
-        canSalvage: false
+        text: `💾 STASH - Great gear but current is better. Keep for later!`,
+        action: 'stash',
+        canSwitch: false
+      };
+    }
+  } else if (newScore >= 70) {
+    if (newScore > currentScore + 10) {
+      return {
+        text: `✅ SWITCH - Good upgrade! New: ${newScore}/100 vs Current: ${currentScore}/100`,
+        action: 'switch',
+        canSwitch: true
+      };
+    } else {
+      return {
+        text: `💾 STASH - Decent gear, stash for backup or alts`,
+        action: 'stash',
+        canSwitch: false
       };
     }
   } else if (newScore >= 50) {
-    return {
-      text: `Mediocre ${slot}. Only switch if current gear is worse.`,
-      canSwitch: newScore > currentScore,
-      canSalvage: false
-    };
+    if (newScore > currentScore + 15) {
+      return {
+        text: `✅ SWITCH - Mediocre but better than current. New: ${newScore}/100 vs Current: ${currentScore}/100`,
+        action: 'switch',
+        canSwitch: true
+      };
+    } else {
+      return {
+        text: `🗑️ SALVAGE - Mediocre gear, not worth keeping`,
+        action: 'salvage',
+        canSwitch: false
+      };
+    }
   } else {
     return {
-      text: `Poor ${slot}. Recommend salvaging for materials.`,
-      canSwitch: false,
-      canSalvage: true
+      text: `🗑️ SALVAGE - Poor gear, salvage for materials`,
+      action: 'salvage',
+      canSwitch: false
     };
   }
 }
@@ -650,8 +681,8 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // Hook up gear action buttons
   const btnSwitch = document.getElementById('btn-switch');
-  const btnSalvage = document.getElementById('btn-salvage');
-  
+  const btnClose = document.getElementById('btn-close');
+
   if (btnSwitch) {
     btnSwitch.addEventListener('click', () => {
       if (!currentAnalysis.detectedSlot || !currentAnalysis.newGearData) return;
@@ -672,14 +703,11 @@ document.addEventListener('DOMContentLoaded', () => {
       alert(`✅ ${slot} switched successfully!`);
     });
   }
-  
-  if (btnSalvage) {
-    btnSalvage.addEventListener('click', () => {
-      if (confirm('🗑️ Are you sure you want to salvage this gear?')) {
-        alert('🗑️ Gear salvaged for materials.');
-        const gearAnalysisPanel = document.getElementById('gearAnalysisPanel');
-        if (gearAnalysisPanel) gearAnalysisPanel.classList.add('hidden');
-      }
+
+  if (btnClose) {
+    btnClose.addEventListener('click', () => {
+      const gearAnalysisPanel = document.getElementById('gearAnalysisPanel');
+      if (gearAnalysisPanel) gearAnalysisPanel.classList.add('hidden');
     });
   }
   

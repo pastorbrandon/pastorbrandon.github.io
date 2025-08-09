@@ -45,6 +45,45 @@ Grading policy:
 - Status bands: Blue=BiS, Green=Right item but needs work, Yellow=Viable, Red=Replace ASAP.
 - Provide actionable 'improvements' to reach Blue (missing mandatories, better aspect, tempering lines, reroll/masterwork tips).
 
+REQUIRED JSON STRUCTURE:
+{
+  "name": "Item Name",
+  "slot": "helm|amulet|chest|gloves|pants|boots|ring|weapon|offhand",
+  "rarity": "Legendary|Unique|Mythic|Unknown",
+  "type": "Ancestral Legendary Helm",
+  "item_power": 925,
+  "armor": 450,
+  "aspect": {
+    "name": "Aspect Name",
+    "source": "imprinted|unique_base|unknown",
+    "text": "Full aspect description"
+  },
+  "affixes": [
+    {
+      "stat": "Cooldown Reduction",
+      "val": 12.5,
+      "unit": "%",
+      "greater": false,
+      "tempered": false
+    }
+  ],
+  "masterwork": {
+    "rank": 2,
+    "max": 5
+  },
+  "tempers": {
+    "used": 1,
+    "max": 2
+  },
+  "sockets": 1,
+  "gems": ["Royal Diamond"],
+  "status": "Blue|Green|Yellow|Red",
+  "score": 95,
+  "reasons": ["Reason 1", "Reason 2"],
+  "improvements": ["Improvement 1", "Improvement 2"],
+  "confidence": 0.95
+}
+
 IMPORTANT: For missing or unclear data, use these defaults:
 - item_power: null (if not visible)
 - armor: null (if not visible)
@@ -54,36 +93,8 @@ IMPORTANT: For missing or unclear data, use these defaults:
 - gems: [] (empty array if not visible)
 - confidence: 0.5 (if uncertain) to 1.0 (if very clear)
 
-Return valid JSON that matches the schema exactly. If a field is unknown, include it with null or [] (do not omit required keys).
+Return valid JSON that matches this structure exactly. If a field is unknown, include it with null or [] (do not omit required keys).
 `;
-
-// Simplified schema for better compatibility
-const SCHEMA = {
-  name: "GearReport",
-  schema: {
-    type: "object",
-    properties: {
-      name:      { type: "string" },
-      slot:      { type: "string" },
-      rarity:    { type: "string" },
-      type:      { type: "string" },
-      item_power:{ type: ["number","null"] },
-      armor:     { type: ["number","null"] },
-      aspect:    { type: "object" },
-      affixes:   { type: "array" },
-      masterwork:{ type: "object" },
-      tempers:   { type: "object" },
-      sockets:   { type: ["number","null"] },
-      gems:      { type: "array" },
-      status:    { type: "string" },
-      score:     { type: ["number","null"] },
-      reasons:   { type: "array" },
-      improvements: { type: "array" },
-      confidence: { type: ["number","null"] }
-    },
-    required: ["name","slot","rarity","type","aspect","affixes","status","score","reasons","improvements"]
-  }
-};
 
 // Build messages with slot-specific rules
 function buildMessages({ image, slot, rules }) {
@@ -129,13 +140,12 @@ export const handler = async (event) => {
 
     const messages = buildMessages({ image, slot, rules });
     
-    console.log('Attempting analysis with simplified schema...');
+    console.log('Attempting analysis with enhanced instructions...');
     const resp = await withRetry(() => client.chat.completions.create({
       model: MODEL,
       messages,
-      response_format: { type: "json_schema", json_schema: SCHEMA },
-      max_tokens: 500,
-      temperature: 0.2
+      max_tokens: 800, // Increased for more detailed responses
+      temperature: 0.05 // Very low temperature for consistent, precise responses
     }));
     console.log('Analysis successful');
 

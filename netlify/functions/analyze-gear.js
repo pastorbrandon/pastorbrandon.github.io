@@ -15,6 +15,8 @@ const PROMPT_SYSTEM = `
 You are a Diablo 4 gear analyst for a Hydra Sorcerer.
 Job: read ONE item screenshot and return STRICT JSON only (no prose). Think silently; output only JSON.
 
+CRITICAL: Return ONLY raw JSON. Do NOT wrap in markdown code blocks (no \`\`\`json). Do NOT add any formatting, comments, or prose. Just the JSON object.
+
 How to parse the UI:
 - Title line: the item name. Text color hints rarity:
   • Orange ≈ Legendary  • Gold/Yellow ≈ Unique  • (If "Mythic" ever appears, treat as top-tier like Unique.)
@@ -93,7 +95,7 @@ IMPORTANT: For missing or unclear data, use these defaults:
 - gems: [] (empty array if not visible)
 - confidence: 0.5 (if uncertain) to 1.0 (if very clear)
 
-Return valid JSON that matches this structure exactly. If a field is unknown, include it with null or [] (do not omit required keys).
+Return ONLY the raw JSON object. No markdown, no code blocks, no formatting. Just the JSON.
 `;
 
 // Build messages with slot-specific rules
@@ -151,18 +153,29 @@ export const handler = async (event) => {
 
     const content = resp.choices?.[0]?.message?.content || "{}";
     
+    // Clean the response content - remove markdown formatting if present
+    let cleanedContent = content.trim();
+    
+    // Remove markdown code blocks if present
+    if (cleanedContent.startsWith('```json')) {
+      cleanedContent = cleanedContent.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+    } else if (cleanedContent.startsWith('```')) {
+      cleanedContent = cleanedContent.replace(/^```\s*/, '').replace(/\s*```$/, '');
+    }
+    
     // Validate the response is valid JSON
     try {
-      JSON.parse(content);
+      JSON.parse(cleanedContent);
     } catch (jsonError) {
-      console.error('Invalid JSON response:', content);
-      throw new Error(`Invalid JSON response from AI: ${jsonError.message}`);
+      console.error('Invalid JSON response:', cleanedContent);
+      console.error('Original response:', content);
+      throw new Error(`Invalid JSON response from AI: ${jsonError.message}. Response: ${cleanedContent.substring(0, 200)}...`);
     }
     
     return { 
       statusCode: 200, 
       headers: { "Content-Type":"application/json", ...CORS }, 
-      body: content 
+      body: cleanedContent 
     };
   } catch (err) {
     console.error('Analysis error:', err);

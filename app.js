@@ -371,8 +371,33 @@ function addGearManually(slot) {
   currentAnalysis.targetSlot = slot;
   currentAnalysis.directEquip = true; // Flag for direct equipping
   
-  // Open camera for gear capture
-  openCamera();
+  // Open native file picker
+  openFilePicker();
+}
+
+// Function to open native file picker
+function openFilePicker() {
+  // Create a hidden file input
+  const fileInput = document.createElement('input');
+  fileInput.type = 'file';
+  fileInput.accept = 'image/*';
+  fileInput.capture = 'environment'; // This enables camera on mobile
+  
+  fileInput.addEventListener('change', (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      // Convert file to data URL
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        lastCaptureDataUrl = e.target.result;
+        analyzeGear();
+      };
+      reader.readAsDataURL(file);
+    }
+  });
+  
+  // Trigger the file picker
+  fileInput.click();
 }
 
 // Enhanced demo load with progress
@@ -383,8 +408,8 @@ if (btnLoadDemo) {
     btnLoadDemo.disabled = true;
     
     try {
-  const resp = await fetch('rulepack.json');
-  const rules = await resp.json();
+      const resp = await fetch('rulepack.json');
+      const rules = await resp.json();
       
       // Cache rules for gear scoring
       localStorage.setItem('rulepack-cache', JSON.stringify(rules));
@@ -436,17 +461,9 @@ if (btnClearBuild) {
 const NOTES_KEY = 'hc-notes';
 const notes = document.getElementById('notes-text');
 if (notes) {
-notes.value = localStorage.getItem(NOTES_KEY) || '';
-notes.addEventListener('input', () => localStorage.setItem(NOTES_KEY, notes.value));
+  notes.value = localStorage.getItem(NOTES_KEY) || '';
+  notes.addEventListener('input', () => localStorage.setItem(NOTES_KEY, notes.value));
 }
-
-// ----- Camera wiring for gear analysis -----
-const camPanel = document.getElementById('cameraPanel');
-const camVideo = document.getElementById('camPreview');
-const camCanvas = document.getElementById('camCanvas');
-const btnOpenCam = document.getElementById('btn-check-gear');
-const btnCapture = document.getElementById('btn-capture');
-const btnCancelCam = document.getElementById('btn-cancel-camera');
 
 // Gear analysis panel elements
 const gearAnalysisPanel = document.getElementById('gearAnalysisPanel');
@@ -456,81 +473,7 @@ const recommendationText = document.getElementById('recommendationText');
 const btnSwitch = document.getElementById('btn-switch');
 const btnSalvage = document.getElementById('btn-salvage');
 
-let camStream = null;
 let lastCaptureDataUrl = null;
-
-// Enhanced camera functionality for gear analysis
-async function openCamera() {
-  if (!camPanel || !camVideo || !btnOpenCam) return;
-  
-  try {
-    camPanel.classList.remove('hidden');
-    lastCaptureDataUrl = null;
-    
-    // Add loading state
-    btnOpenCam.classList.add('loading');
-    btnOpenCam.textContent = 'Opening Camera...';
-
-    camStream = await navigator.mediaDevices.getUserMedia({
-      video: { 
-        facingMode: 'environment',
-        width: { ideal: 1920 },
-        height: { ideal: 1080 }
-      }
-    });
-    
-    camVideo.srcObject = camStream;
-    btnOpenCam.classList.remove('loading');
-    btnOpenCam.textContent = 'Camera Active';
-    
-    // Add success feedback
-    camPanel.style.borderColor = 'var(--success)';
-    
-  } catch (e) {
-    console.error('Camera error:', e);
-    alert('Camera error: ' + e.message);
-    btnOpenCam.classList.remove('loading');
-    btnOpenCam.textContent = 'Check New Gear';
-  }
-}
-
-// Stop camera
-function stopCamera() {
-  if (camStream) {
-    camStream.getTracks().forEach(t => t.stop());
-    camStream = null;
-  }
-  if (camPanel) camPanel.classList.add('hidden');
-  if (btnOpenCam) {
-    btnOpenCam.textContent = 'Check New Gear';
-    btnOpenCam.classList.remove('loading');
-  }
-}
-
-// Enhanced capture with gear analysis
-function captureFrame() {
-  if (!camVideo || !camCanvas || !btnCapture) return;
-  
-  const vw = camVideo.videoWidth || 1280;
-  const vh = camVideo.videoHeight || 720;
-  camCanvas.width = vw;
-  camCanvas.height = vh;
-  const ctx = camCanvas.getContext('2d');
-  ctx.drawImage(camVideo, 0, 0, vw, vh);
-  lastCaptureDataUrl = camCanvas.toDataURL('image/jpeg', 0.92);
-  camCanvas.classList.remove('hidden');
-  
-  // Add capture feedback
-  btnCapture.textContent = '✓ Captured';
-  btnCapture.style.background = 'var(--success)';
-  setTimeout(() => {
-    btnCapture.textContent = '📷 Capture Gear';
-    btnCapture.style.background = '';
-  }, 1000);
-  
-  // Analyze the captured gear
-  analyzeGear();
-}
 
 // Real OCR and gear analysis
 async function analyzeGear() {
@@ -563,7 +506,7 @@ async function analyzeGear() {
         saveBuild(build);
         
         // Close camera
-        stopCamera();
+        // stopCamera(); // This function is no longer needed
         
         // Clear the analysis state
         currentAnalysis = {
@@ -597,14 +540,14 @@ async function analyzeGear() {
         
         // Show analysis panel
         if (gearAnalysisPanel) gearAnalysisPanel.classList.remove('hidden');
-        if (camPanel) camPanel.classList.add('hidden');
+        // if (camPanel) camPanel.classList.add('hidden'); // camPanel is removed
         
         // For checking gear, we need to detect the slot type
         // Since we can't simulate, we'll ask the user
         const detectedSlot = await promptForGearSlot();
         if (!detectedSlot) {
           alert('❌ Gear analysis cancelled. Could not determine gear type.');
-          stopCamera();
+          // stopCamera(); // camPanel is removed
           return;
         }
         
@@ -623,12 +566,12 @@ async function analyzeGear() {
       // OCR failed - show error and stop
       console.log('OCR failed - no data returned');
       alert('❌ Failed to analyze gear image. Please try again with a clearer photo.');
-      stopCamera();
+      // stopCamera(); // camPanel is removed
     }
   } catch (error) {
     console.error('Error during OCR analysis:', error);
     alert(`❌ Error analyzing gear: ${error.message}\n\nPlease check your API key and try again.`);
-    stopCamera();
+    // stopCamera(); // camPanel is removed
   }
 }
 
@@ -947,7 +890,7 @@ function updateGearAnalysisForAdding(targetSlot, newGearData) {
   
   // Show analysis panel
   if (gearAnalysisPanel) gearAnalysisPanel.classList.remove('hidden');
-  if (camPanel) camPanel.classList.add('hidden');
+  // if (camPanel) camPanel.classList.add('hidden'); // camPanel is removed
   
   // Update current gear info (will be "No gear equipped" for new slots)
   const currentGear = build[targetSlot];
@@ -1072,27 +1015,36 @@ if (btnSalvage) {
 }
 
 // Hook up camera buttons
-if (btnOpenCam) {
-  btnOpenCam.textContent = 'Check New Gear';
-btnOpenCam.addEventListener('click', openCamera);
-}
-
-if (btnCapture) {
-btnCapture.addEventListener('click', captureFrame);
-}
-
-if (btnCancelCam) {
-  btnCancelCam.addEventListener('click', () => {
-    stopCamera();
-    if (gearAnalysisPanel) gearAnalysisPanel.classList.add('hidden');
+// if (btnOpenCam) { // btnOpenCam is removed
+//   btnOpenCam.textContent = 'Check New Gear';
+//   btnOpenCam.addEventListener('click', () => {
+//     // Clear any previous analysis state
+//     currentAnalysis = {
+//       newGearData: null,
+//       detectedSlot: null
+//     };
     
-    // Clear the analysis state
-    if (currentAnalysis.targetSlot) {
-      currentAnalysis.targetSlot = null;
-      currentAnalysis.directEquip = false;
-    }
-  });
-}
+//     // Open native file picker for checking gear
+//     openFilePicker();
+//   });
+// }
+
+// if (btnCapture) { // btnCapture is removed
+// btnCapture.addEventListener('click', captureFrame);
+// }
+
+// if (btnCancelCam) { // btnCancelCam is removed
+//   btnCancelCam.addEventListener('click', () => {
+//     stopCamera();
+//     if (gearAnalysisPanel) gearAnalysisPanel.classList.add('hidden');
+    
+//     // Clear the analysis state
+//     if (currentAnalysis.targetSlot) {
+//       currentAnalysis.targetSlot = null;
+//       currentAnalysis.directEquip = false;
+//     }
+//   });
+// }
 
 // Configure API button
 const btnConfigureApi = document.getElementById('btn-configure-api');

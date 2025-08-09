@@ -69,17 +69,22 @@ function validateAnalysisResult(result) {
   // Check that aspect object exists (new schema uses single aspect object)
   if (!result.aspect || typeof result.aspect !== 'object') return false;
   
-  // Validate affix objects (new schema structure)
+  // Validate affix objects (new schema structure) - be more flexible
   for (const affix of result.affixes) {
-    if (typeof affix !== 'object' || !affix.stat || affix.val === undefined) {
+    if (typeof affix !== 'object' || !affix.stat) {
+      return false;
+    }
+    // Allow val to be undefined/null for flexibility
+    if (affix.val !== undefined && typeof affix.val !== 'number' && affix.val !== null) {
       return false;
     }
   }
   
-  // Validate aspect object (new schema structure)
-  if (!result.aspect.name || !result.aspect.source || !result.aspect.text) {
+  // Validate aspect object (new schema structure) - be more flexible
+  if (!result.aspect.text) {
     return false;
   }
+  // Allow name and source to be null/undefined for flexibility
   
   return true;
 }

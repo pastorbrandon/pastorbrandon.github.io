@@ -45,6 +45,15 @@ Grading policy:
 - Status bands: Blue=BiS, Green=Right item but needs work, Yellow=Viable, Red=Replace ASAP.
 - Provide actionable 'improvements' to reach Blue (missing mandatories, better aspect, tempering lines, reroll/masterwork tips).
 
+IMPORTANT: For missing or unclear data, use these defaults:
+- item_power: null (if not visible)
+- armor: null (if not visible)
+- masterwork: { rank: null, max: null } (if not visible)
+- tempers: { used: null, max: null } (if not visible)
+- sockets: null (if not visible)
+- gems: [] (empty array if not visible)
+- confidence: 0.5 (if uncertain) to 1.0 (if very clear)
+
 Return valid JSON that matches the schema exactly. If a field is unknown, include it with null or [] (do not omit required keys).
 `;
 
@@ -115,10 +124,37 @@ const SCHEMA = {
       confidence: { type: ["number","null"] }  // 0..1 overall extraction confidence
     },
     required: [
-      "name","slot","rarity","type","item_power","armor",
-      "aspect","affixes","masterwork","tempers","sockets","gems",
+      "name","slot","rarity","type","aspect","affixes","masterwork","tempers","sockets","gems",
       "status","score","reasons","improvements","confidence"
     ]
+  }
+};
+
+// Fallback schema for when strict schema fails
+const FALLBACK_SCHEMA = {
+  name: "GearReport",
+  schema: {
+    type: "object",
+    properties: {
+      name:      { type: "string" },
+      slot:      { type: "string" },
+      rarity:    { type: "string" },
+      type:      { type: "string" },
+      item_power:{ type: ["number","null"] },
+      armor:     { type: ["number","null"] },
+      aspect:    { type: "object" },
+      affixes:   { type: "array" },
+      masterwork:{ type: "object" },
+      tempers:   { type: "object" },
+      sockets:   { type: ["number","null"] },
+      gems:      { type: "array" },
+      status:    { type: "string" },
+      score:     { type: ["number","null"] },
+      reasons:   { type: "array" },
+      improvements: { type: "array" },
+      confidence: { type: ["number","null"] }
+    },
+    required: ["name","slot","rarity","type","aspect","affixes","status","score","reasons","improvements"]
   }
 };
 
@@ -166,25 +202,55 @@ export const handler = async (event) => {
 
     const messages = buildMessages({ image, slot, rules });
     
-    const resp = await withRetry(() => client.chat.completions.create({
-      model: MODEL,
-      messages,
-      response_format: { type: "json_schema", json_schema: SCHEMA },
-      max_tokens: 500,
-      temperature: 0.2
-    }));
+    // Try with strict schema first
+    let resp;
+    try {
+      console.log('Attempting analysis with strict schema...');
+      resp = await withRetry(() => client.chat.completions.create({
+        model: MODEL,
+        messages,
+        response_format: { type: "json_schema", json_schema: SCHEMA },
+        max_tokens: 500,
+        temperature: 0.2
+      }));
+      console.log('Strict schema analysis successful');
+    } catch (strictError) {
+      console.warn('Strict schema failed, trying fallback schema:', strictError.message);
+      // Fallback to more lenient schema
+      resp = await withRetry(() => client.chat.completions.create({
+        model: MODEL,
+        messages,
+        response_format: { type: "json_schema", json_schema: FALLBACK_SCHEMA },
+        max_tokens: 500,
+        temperature: 0.2
+      }));
+      console.log('Fallback schema analysis successful');
+    }
 
     const content = resp.choices?.[0]?.message?.content || "{}";
+    
+    // Validate the response is valid JSON
+    try {
+      JSON.parse(content);
+    } catch (jsonError) {
+      console.error('Invalid JSON response:', content);
+      throw new Error(`Invalid JSON response from AI: ${jsonError.message}`);
+    }
+    
     return { 
       statusCode: 200, 
       headers: { "Content-Type":"application/json", ...CORS }, 
       body: content 
     };
   } catch (err) {
+    console.error('Analysis error:', err);
     return { 
       statusCode: 400, 
       headers: { "Content-Type":"application/json", ...CORS }, 
-      body: JSON.stringify({ error: String(err) }) 
+      body: JSON.stringify({ 
+        error: String(err),
+        details: err.message || 'Unknown error occurred during analysis'
+      }) 
     };
   }
 };

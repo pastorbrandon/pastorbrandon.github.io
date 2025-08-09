@@ -42,9 +42,27 @@ let currentAnalysis = {
   detectedSlot: null
 };
 
+// Force hide modal immediately
+console.log('Script starting - forcing modal to be hidden...');
+setTimeout(() => {
+  const gearModal = document.getElementById('gearModal');
+  if (gearModal) {
+    gearModal.classList.add('hidden');
+    gearModal.style.display = 'none';
+    console.log('Modal forced hidden on script start');
+  }
+}, 0);
+
 // Wait for DOM to be ready before initializing modal
 document.addEventListener('DOMContentLoaded', () => {
   console.log('DOM loaded, initializing modal...');
+  
+  // Debug: Check if there's any saved build data
+  console.log('Current build data:', build);
+  
+  // Check if any slots have gear data
+  const slotsWithGear = SLOTS.filter(slot => build[slot]);
+  console.log('Slots with gear data:', slotsWithGear);
   
   // Modal elements
   const gearModal = document.getElementById('gearModal');
@@ -65,9 +83,10 @@ document.addEventListener('DOMContentLoaded', () => {
     closeModal: !!closeModal
   });
 
-  // Ensure modal is hidden on page load
+  // Ensure modal is hidden on page load - multiple approaches
   if (gearModal) {
     gearModal.classList.add('hidden');
+    gearModal.style.display = 'none';
     console.log('Modal hidden on page load');
   }
 
@@ -76,6 +95,7 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('Closing modal...');
     if (gearModal) {
       gearModal.classList.add('hidden');
+      gearModal.style.display = 'none';
       console.log('Modal closed');
     }
   }
@@ -117,6 +137,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const gearNameEl = slotEl.querySelector('.gear-name');
     if (gearNameEl) {
       gearNameEl.addEventListener('click', () => {
+        console.log(`Gear name clicked for slot: ${slot}, has gear data:`, !!build[slot]);
         if (build[slot]) {
           showGearModal(slot);
         }
@@ -133,6 +154,17 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   console.log('Paper doll initialization complete');
+});
+
+// Also force hide modal on window load
+window.addEventListener('load', () => {
+  console.log('Window loaded - ensuring modal is hidden...');
+  const gearModal = document.getElementById('gearModal');
+  if (gearModal) {
+    gearModal.classList.add('hidden');
+    gearModal.style.display = 'none';
+    console.log('Modal hidden on window load');
+  }
 });
 
 // Gear scoring system
@@ -205,6 +237,8 @@ function showGearModal(slot) {
     return;
   }
   
+  console.log('Gear data found:', gearData);
+  
   const gearModal = document.getElementById('gearModal');
   const modalTitle = document.getElementById('modalTitle');
   const modalGearName = document.getElementById('modalGearName');
@@ -245,6 +279,7 @@ function showGearModal(slot) {
   }
   
   gearModal.classList.remove('hidden');
+  gearModal.style.display = 'block';
   console.log('Modal shown');
 }
 

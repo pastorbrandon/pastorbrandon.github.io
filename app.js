@@ -155,6 +155,14 @@ document.addEventListener('DOMContentLoaded', () => {
   const modalImprovement = document.getElementById('modalImprovement');
   const closeModal = document.getElementById('closeModal');
 
+  // Initialize gear analysis panel elements
+  gearAnalysisPanel = document.getElementById('gearAnalysisPanel');
+  currentGearInfo = document.getElementById('currentGearInfo');
+  newGearInfo = document.getElementById('newGearInfo');
+  recommendationText = document.getElementById('recommendationText');
+  btnSwitch = document.getElementById('btn-switch');
+  btnSalvage = document.getElementById('btn-salvage');
+
   console.log('Modal elements found:', {
     gearModal: !!gearModal,
     modalTitle: !!modalTitle,
@@ -163,6 +171,15 @@ document.addEventListener('DOMContentLoaded', () => {
     modalGearGrade: !!modalGearGrade,
     modalImprovement: !!modalImprovement,
     closeModal: !!closeModal
+  });
+
+  console.log('Gear analysis elements found:', {
+    gearAnalysisPanel: !!gearAnalysisPanel,
+    currentGearInfo: !!currentGearInfo,
+    newGearInfo: !!newGearInfo,
+    recommendationText: !!recommendationText,
+    btnSwitch: !!btnSwitch,
+    btnSalvage: !!btnSalvage
   });
 
   // Ensure modal is hidden on page load - multiple approaches
@@ -250,7 +267,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const fileInput = document.createElement('input');
     fileInput.type = 'file';
     fileInput.accept = 'image/*';
-    fileInput.capture = 'environment';
+    // Remove capture attribute to show both camera and gallery options on iPhone
     
     fileInput.addEventListener('change', async (event) => {
       const file = event.target.files[0];
@@ -462,57 +479,73 @@ function updateGearDisplay(slot, gearData) {
 
 // Modal functionality
 function showGearModal(slot) {
-  console.log('showGearModal called for slot:', slot);
   const gearData = build[slot];
-  if (!gearData) {
-    console.log('No gear data for slot:', slot);
-    return;
-  }
+  if (!gearData) return;
   
-  console.log('Gear data found:', gearData);
-  
-  const gearModal = document.getElementById('gearModal');
   const modalTitle = document.getElementById('modalTitle');
   const modalGearName = document.getElementById('modalGearName');
   const modalGearStats = document.getElementById('modalGearStats');
   const modalGearGrade = document.getElementById('modalGearGrade');
   const modalImprovement = document.getElementById('modalImprovement');
   
-  if (!gearModal || !modalTitle || !modalGearName || !modalGearStats || !modalGearGrade) {
-    console.error('Modal elements not found');
-    return;
+  if (modalTitle) modalTitle.textContent = `${slot.charAt(0).toUpperCase() + slot.slice(1)} Details`;
+  if (modalGearName) modalGearName.textContent = gearData.name;
+  
+  // Build stats HTML with affix values
+  let statsHtml = '';
+  if (gearData.affixes && gearData.affixes.length > 0) {
+    statsHtml += '<h4>Affixes:</h4><ul>';
+    gearData.affixes.forEach(affix => {
+      // Check if affix has a value (like "+11% attack speed")
+      if (typeof affix === 'object' && affix.stat && affix.val) {
+        statsHtml += `<li>${affix.stat}: ${affix.val}</li>`;
+      } else if (typeof affix === 'string') {
+        statsHtml += `<li>${affix}</li>`;
+      }
+    });
+    statsHtml += '</ul>';
   }
   
-  modalTitle.textContent = `${slot.charAt(0).toUpperCase() + slot.slice(1)} Details`;
-  modalGearName.textContent = gearData.name;
-  modalGearName.className = `modal-gear-name ${gearData.grade}`;
+  // Add aspects if present
+  if (gearData.aspects && gearData.aspects.length > 0) {
+    statsHtml += '<h4>Aspects:</h4><ul>';
+    gearData.aspects.forEach(aspect => {
+      statsHtml += `<li>${aspect}</li>`;
+    });
+    statsHtml += '</ul>';
+  }
   
-  // Display gear stats
-  modalGearStats.innerHTML = `
-    <h4>Affixes:</h4>
-    <ul>
-      ${gearData.affixes.map(affix => `<li>${affix}</li>`).join('')}
-    </ul>
-  `;
+  if (modalGearStats) modalGearStats.innerHTML = statsHtml;
   
-  // Display grade
-  const gradeText = gearData.grade === 'blue' ? 'BiS (Best in Slot)' :
-                   gearData.grade === 'green' ? 'Good (Keep & Improve)' :
-                   gearData.grade === 'yellow' ? 'Viable' : 'Replace';
-  
-  modalGearGrade.textContent = `Grade: ${gradeText} (${gearData.score}/100)`;
-  modalGearGrade.className = `modal-gear-grade ${gearData.grade}`;
+  // Show grade
+  if (modalGearGrade) {
+    const gradeColors = {
+      'blue': '#4a9eff',
+      'green': '#4caf50',
+      'yellow': '#ffc107',
+      'red': '#f44336'
+    };
+    modalGearGrade.innerHTML = `
+      <span style="color: ${gradeColors[gearData.grade] || '#999'}">
+        Grade: ${gearData.grade.toUpperCase()} (${gearData.score}/100)
+      </span>
+    `;
+  }
   
   // Show improvement suggestions for non-blue gear
-  if (gearData.grade !== 'blue') {
+  if (modalImprovement && gearData.grade !== 'blue') {
     showImprovementSuggestions(slot, gearData);
-  } else {
+  } else if (modalImprovement) {
     modalImprovement.classList.add('hidden');
   }
   
-  gearModal.classList.remove('hidden');
-  gearModal.style.display = 'block';
-  console.log('Modal shown');
+  // Show modal
+  const gearModal = document.getElementById('gearModal');
+  if (gearModal) {
+    gearModal.classList.remove('hidden');
+    gearModal.style.display = 'block';
+    console.log('Modal shown');
+  }
 }
 
 function showImprovementSuggestions(slot, gearData) {
@@ -741,13 +774,13 @@ if (notes) {
   notes.addEventListener('input', () => localStorage.setItem(NOTES_KEY, notes.value));
 }
 
-// Gear analysis panel elements
-const gearAnalysisPanel = document.getElementById('gearAnalysisPanel');
-const currentGearInfo = document.getElementById('currentGearInfo');
-const newGearInfo = document.getElementById('newGearInfo');
-const recommendationText = document.getElementById('recommendationText');
-const btnSwitch = document.getElementById('btn-switch');
-const btnSalvage = document.getElementById('btn-salvage');
+// Gear analysis panel elements (moved to global scope)
+let gearAnalysisPanel = null;
+let currentGearInfo = null;
+let newGearInfo = null;
+let recommendationText = null;
+let btnSwitch = null;
+let btnSalvage = null;
 
 let lastCaptureDataUrl = null;
 

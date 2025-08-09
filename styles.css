@@ -856,3 +856,26 @@ footer {
     margin: 20px;
   }
 }
+
+.add-gear-btn {
+  background: var(--accent);
+  color: #000;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: 8px;
+  width: 100%;
+}
+
+.add-gear-btn:hover {
+  background: #ffb366;
+  transform: translateY(-1px);
+}
+
+.add-gear-btn:active {
+  transform: translateY(0);
+}

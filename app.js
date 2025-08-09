@@ -222,10 +222,50 @@ SLOTS.forEach(slot => {
   const gearNameEl = slotEl.querySelector('.gear-name');
   if (gearNameEl) {
     gearNameEl.addEventListener('click', () => {
-      showGearModal(slot);
+      if (build[slot]) {
+        showGearModal(slot);
+      }
+    });
+  }
+  
+  // Add click handler for Add Gear button
+  const addGearBtn = slotEl.querySelector('.add-gear-btn');
+  if (addGearBtn) {
+    addGearBtn.addEventListener('click', () => {
+      addGearManually(slot);
     });
   }
 });
+
+// Function to manually add gear
+function addGearManually(slot) {
+  const gearName = prompt(`Enter ${slot} name:`);
+  if (!gearName) return;
+  
+  const affixes = prompt(`Enter affixes (comma separated):\nExample: Cooldown Reduction, Critical Strike Chance, Attack Speed`);
+  if (!affixes) return;
+  
+  const affixList = affixes.split(',').map(a => a.trim()).filter(a => a);
+  
+  const gearData = {
+    name: gearName,
+    affixes: affixList,
+    score: 0,
+    grade: 'red'
+  };
+  
+  // Score the gear properly
+  gearData.score = scoreGear(slot, gearData);
+  gearData.grade = getGradeFromScore(gearData.score);
+  
+  // Update build and display
+  build[slot] = gearData;
+  updateGearDisplay(slot, gearData);
+  saveBuild(build);
+  
+  // Show success message
+  alert(`✅ ${gearName} added to ${slot}!`);
+}
 
 // Enhanced demo load with progress
 const btnLoadDemo = $('#btn-load-demo');

@@ -360,7 +360,7 @@ function updateGearDisplay(slot, gearData) {
     nameElement.textContent = 'No gear equipped';
     nameElement.setAttribute('data-grade', 'unscored');
     addButton.textContent = '+ Add Gear';
-    addButton.onclick = () => openFilePicker();
+    addButton.onclick = () => openFilePickerForAnalysis();
   }
 }
 
@@ -805,7 +805,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (slotElement) {
       const addButton = slotElement.querySelector('.add-gear-btn');
       if (addButton) {
-        addButton.addEventListener('click', () => openFilePicker());
+        addButton.addEventListener('click', () => openFilePickerForAnalysis());
       }
     }
   });

@@ -448,8 +448,21 @@ function updateGearDisplay(slot, gearData) {
 
 // Modal functionality
 function showGearModal(slot) {
+  console.log('showGearModal called with slot:', slot);
+  
+  // Guard clause - don't show modal if no valid slot
+  if (!slot || typeof slot !== 'string') {
+    console.log('Invalid slot provided to showGearModal:', slot);
+    return;
+  }
+  
   const gearData = build[slot];
-  if (!gearData) return;
+  if (!gearData) {
+    console.log('No gear data found for slot:', slot);
+    return;
+  }
+  
+  console.log('Gear data:', gearData);
   
   const modalTitle = document.getElementById('modalTitle');
   const modalGearName = document.getElementById('modalGearName');
@@ -458,7 +471,7 @@ function showGearModal(slot) {
   const modalImprovement = document.getElementById('modalImprovement');
   
   if (modalTitle) modalTitle.textContent = `${slot.charAt(0).toUpperCase() + slot.slice(1)} Details`;
-  if (modalGearName) modalGearName.textContent = gearData.name;
+  if (modalGearName) modalGearName.textContent = gearData.name || 'Unknown Item';
   
   // Build stats HTML with affix values
   let statsHtml = '';
@@ -502,7 +515,7 @@ function showGearModal(slot) {
   if (modalGearStats) modalGearStats.innerHTML = statsHtml;
   
   // Show grade
-  if (modalGearGrade) {
+  if (modalGearGrade && gearData.grade) {
     const gradeColors = {
       'blue': '#4a9eff',
       'green': '#4caf50',
@@ -511,13 +524,13 @@ function showGearModal(slot) {
     };
     modalGearGrade.innerHTML = `
       <span style="color: ${gradeColors[gearData.grade] || '#999'}">
-        Grade: ${gearData.grade.toUpperCase()} (${gearData.score}/100)
+        Grade: ${gearData.grade.toUpperCase()} (${gearData.score || 0}/100)
       </span>
     `;
   }
   
   // Show improvement suggestions for non-blue gear
-  if (modalImprovement && gearData.grade !== 'blue') {
+  if (modalImprovement && gearData.grade && gearData.grade !== 'blue') {
     showImprovementSuggestions(slot, gearData);
   } else if (modalImprovement) {
     modalImprovement.classList.add('hidden');
@@ -1114,11 +1127,31 @@ function generateRecommendation(slot, newGearData) {
 document.addEventListener('DOMContentLoaded', () => {
   console.log('DOM loaded, initializing...');
   
-  // Ensure modal is hidden on page load
+  // Force hide all modals on page load
+  const allModals = document.querySelectorAll('.modal, .affix-details');
+  allModals.forEach(modal => {
+    modal.classList.add('hidden');
+    modal.style.display = 'none';
+    modal.style.visibility = 'hidden';
+    modal.style.opacity = '0';
+    modal.style.pointerEvents = 'none';
+  });
+  console.log('All modals forced hidden on page load');
+  
+  // Ensure modal is hidden on page load - more robust approach
   const gearModal = document.getElementById('gearModal');
   if (gearModal) {
     gearModal.classList.add('hidden');
     gearModal.style.display = 'none';
+    gearModal.style.visibility = 'hidden';
+    console.log('Gear modal hidden on page load');
+  }
+  
+  // Also ensure affix details modal is hidden
+  const affixDetails = document.getElementById('affixDetails');
+  if (affixDetails) {
+    affixDetails.classList.add('hidden');
+    console.log('Affix details hidden on page load');
   }
   
   // Close modal function
@@ -1126,6 +1159,27 @@ document.addEventListener('DOMContentLoaded', () => {
     if (gearModal) {
       gearModal.classList.add('hidden');
       gearModal.style.display = 'none';
+      gearModal.style.visibility = 'hidden';
+      gearModal.style.opacity = '0';
+      gearModal.style.pointerEvents = 'none';
+      console.log('Gear modal closed');
+    }
+  }
+  
+  // Show modal function
+  function showGearModalProper(slot) {
+    if (!slot || !build[slot]) {
+      console.log('Cannot show modal - no valid slot or gear data');
+      return;
+    }
+    
+    if (gearModal) {
+      gearModal.classList.remove('hidden');
+      gearModal.style.display = 'block';
+      gearModal.style.visibility = 'visible';
+      gearModal.style.opacity = '1';
+      gearModal.style.pointerEvents = 'auto';
+      console.log('Gear modal shown for slot:', slot);
     }
   }
   
@@ -1138,6 +1192,23 @@ document.addEventListener('DOMContentLoaded', () => {
       closeGearModal();
     });
   }
+  
+  // Add click outside modal to close
+  if (gearModal) {
+    gearModal.addEventListener('click', (e) => {
+      if (e.target === gearModal) {
+        closeGearModal();
+      }
+    });
+  }
+  
+  // Add escape key to close modal
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      closeGearModal();
+      hideAffixDetails();
+    }
+  });
   
   // Set up tab switching
   const tabButtons = document.querySelectorAll('#tabs button');
@@ -1168,7 +1239,8 @@ document.addEventListener('DOMContentLoaded', () => {
       if (gearName) {
         gearName.addEventListener('click', () => {
           if (build[slot]) {
-            showGearModal(slot);
+            showGearModalProper(slot);
+            showGearModal(slot); // This populates the content
           }
         });
       }
@@ -1262,6 +1334,15 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // Initialize affixes interface
   await initializeAffixes();
+  
+  // Test modal state
+  const testModal = document.getElementById('gearModal');
+  if (testModal) {
+    const isHidden = testModal.classList.contains('hidden') && 
+                    testModal.style.display === 'none' && 
+                    testModal.style.visibility === 'hidden';
+    console.log('Modal hidden state test:', isHidden ? 'PASSED' : 'FAILED');
+  }
 });
 
 // Affixes Interface Functionality

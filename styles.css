@@ -1105,5 +1105,331 @@ footer {
 }
 
 .add-gear-btn:active {
-  transform: translateY(0);
+  transform: translateY(1px);
+}
+
+/* Affixes Interface Styles */
+.gear-selector {
+  margin-bottom: 24px;
+  padding: 20px;
+  background: var(--card);
+  border-radius: 12px;
+  border: 1px solid var(--border);
+}
+
+.gear-selector h3 {
+  margin: 0 0 16px 0;
+  color: var(--accent);
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.gear-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px;
+}
+
+.gear-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16px 12px;
+  background: var(--bg);
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-decoration: none;
+  color: var(--fg);
+}
+
+.gear-option:hover {
+  border-color: var(--accent);
+  background: var(--card);
+  transform: translateY(-2px);
+}
+
+.gear-option.active {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #000;
+}
+
+.gear-icon {
+  font-size: 24px;
+  margin-bottom: 8px;
+}
+
+.gear-option span {
+  font-size: 14px;
+  font-weight: 500;
+  text-align: center;
+}
+
+/* Affix Details Panel */
+.affix-details {
+  background: var(--card);
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+  animation: fadeIn 0.3s ease;
+}
+
+.affix-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  background: linear-gradient(135deg, var(--accent) 0%, #ffb366 100%);
+  color: #000;
+}
+
+.affix-header h3 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.affix-content {
+  padding: 20px;
+}
+
+.affix-section {
+  margin-bottom: 24px;
+}
+
+.affix-section:last-child {
+  margin-bottom: 0;
+}
+
+.affix-section h4 {
+  margin: 0 0 12px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Best in Slot Items */
+.bis-items {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.bis-item {
+  padding: 12px;
+  background: var(--bg);
+  border-radius: 8px;
+  border-left: 4px solid var(--accent);
+}
+
+.bis-item.unique {
+  border-left-color: #ffd700;
+  background: linear-gradient(135deg, var(--bg) 0%, #2a2a2a 100%);
+}
+
+.bis-item-name {
+  font-weight: 600;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+
+.bis-item.unique .bis-item-name {
+  color: #ffd700;
+}
+
+.bis-item-desc {
+  font-size: 14px;
+  color: var(--muted);
+}
+
+/* Affix Lists */
+.affix-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.affix-list.mandatory .affix-item {
+  border-left-color: var(--red);
+  background: linear-gradient(135deg, var(--bg) 0%, #2a1a1a 100%);
+}
+
+.affix-list.preferred .affix-item {
+  border-left-color: var(--yellow);
+  background: linear-gradient(135deg, var(--bg) 0%, #2a2a1a 100%);
+}
+
+.affix-list.tempering .affix-item {
+  border-left-color: var(--blue);
+  background: linear-gradient(135deg, var(--bg) 0%, #1a2a2a 100%);
+}
+
+.affix-item {
+  padding: 12px;
+  background: var(--bg);
+  border-radius: 8px;
+  border-left: 4px solid var(--accent);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.affix-name {
+  font-weight: 500;
+  color: var(--fg);
+}
+
+.affix-priority {
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.affix-list.mandatory .affix-priority {
+  background: var(--red);
+  color: #fff;
+}
+
+.affix-list.preferred .affix-priority {
+  background: var(--yellow);
+  color: #000;
+}
+
+.affix-list.tempering .affix-priority {
+  background: var(--blue);
+  color: #fff;
+}
+
+/* Aspect List */
+.aspect-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.aspect-item {
+  padding: 12px;
+  background: var(--bg);
+  border-radius: 8px;
+  border-left: 4px solid var(--accent);
+}
+
+.aspect-name {
+  font-weight: 600;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+
+.aspect-desc {
+  font-size: 14px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+/* Enchantment List */
+.enchantment-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.enchantment-item {
+  padding: 12px;
+  background: var(--bg);
+  border-radius: 8px;
+  border-left: 4px solid var(--green);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.enchantment-icon {
+  font-size: 16px;
+}
+
+.enchantment-text {
+  font-size: 14px;
+  color: var(--fg);
+}
+
+/* Build Notes */
+.build-notes {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.build-note {
+  padding: 12px;
+  background: var(--bg);
+  border-radius: 8px;
+  border-left: 4px solid var(--muted);
+}
+
+.build-note-title {
+  font-weight: 600;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+
+.build-note-content {
+  font-size: 14px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+/* Responsive Design for Affixes */
+@media (max-width: 768px) {
+  .gear-grid {
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    gap: 8px;
+  }
+  
+  .gear-option {
+    padding: 12px 8px;
+  }
+  
+  .gear-icon {
+    font-size: 20px;
+  }
+  
+  .gear-option span {
+    font-size: 12px;
+  }
+  
+  .affix-content {
+    padding: 16px;
+  }
+  
+  .affix-header {
+    padding: 16px;
+  }
+  
+  .affix-header h3 {
+    font-size: 18px;
+  }
+}
+
+/* Fallback JSON display */
+#affix-json-fallback {
+  background: var(--card);
+  padding: 20px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+}
+
+#affix-json-fallback pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--muted);
 }

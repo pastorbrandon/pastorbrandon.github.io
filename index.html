@@ -11,7 +11,7 @@
 <body>
   <header>
     <h1>Horadric Companion</h1>
-    <p>Hydra Sorcerer Companion (v2.0)</p>
+    <p>Hydra Sorcerer Companion (v2.0.1)</p>
   </header>
 
   <nav id="tabs">
@@ -143,7 +143,106 @@
 
     <section id="affixes" class="tab">
       <h2>Affix Priorities</h2>
-      <pre id="affix-json"></pre>
+      
+      <!-- Gear Selection Interface -->
+      <div class="gear-selector">
+        <h3>Select Gear Type</h3>
+        <div class="gear-grid">
+          <button class="gear-option" data-slot="helm">
+            <div class="gear-icon">🪖</div>
+            <span>Helm</span>
+          </button>
+          <button class="gear-option" data-slot="amulet">
+            <div class="gear-icon">📿</div>
+            <span>Amulet</span>
+          </button>
+          <button class="gear-option" data-slot="chest">
+            <div class="gear-icon">👕</div>
+            <span>Chest</span>
+          </button>
+          <button class="gear-option" data-slot="gloves">
+            <div class="gear-icon">🧤</div>
+            <span>Gloves</span>
+          </button>
+          <button class="gear-option" data-slot="pants">
+            <div class="gear-icon">👖</div>
+            <span>Pants</span>
+          </button>
+          <button class="gear-option" data-slot="boots">
+            <div class="gear-icon">👢</div>
+            <span>Boots</span>
+          </button>
+          <button class="gear-option" data-slot="ring">
+            <div class="gear-icon">💍</div>
+            <span>Ring</span>
+          </button>
+          <button class="gear-option" data-slot="weapon">
+            <div class="gear-icon">⚔️</div>
+            <span>Weapon</span>
+          </button>
+          <button class="gear-option" data-slot="offhand">
+            <div class="gear-icon">🛡️</div>
+            <span>Off-hand</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Affix Details Panel -->
+      <div id="affixDetails" class="affix-details hidden">
+        <div class="affix-header">
+          <h3 id="affixSlotTitle">Select a gear type above</h3>
+          <button id="closeAffixDetails" class="close-btn">×</button>
+        </div>
+        
+        <div class="affix-content">
+          <!-- Best in Slot Items -->
+          <div class="affix-section">
+            <h4>🏆 Best in Slot</h4>
+            <div id="bisItems" class="bis-items"></div>
+          </div>
+
+          <!-- Mandatory Affixes -->
+          <div class="affix-section">
+            <h4>🔴 Mandatory Affixes</h4>
+            <div id="mandatoryAffixes" class="affix-list mandatory"></div>
+          </div>
+
+          <!-- Preferred Affixes -->
+          <div class="affix-section">
+            <h4>🟡 Preferred Affixes</h4>
+            <div id="preferredAffixes" class="affix-list preferred"></div>
+          </div>
+
+          <!-- Tempering Options -->
+          <div class="affix-section">
+            <h4>⚡ Tempering Options</h4>
+            <div id="temperingOptions" class="affix-list tempering"></div>
+          </div>
+
+          <!-- Aspects -->
+          <div class="affix-section">
+            <h4>✨ Recommended Aspects</h4>
+            <div id="recommendedAspects" class="aspect-list"></div>
+          </div>
+
+          <!-- Enchantment Targets -->
+          <div class="affix-section">
+            <h4>🔧 Enchantment Targets</h4>
+            <div id="enchantmentTargets" class="enchantment-list"></div>
+          </div>
+
+          <!-- Build Notes -->
+          <div class="affix-section">
+            <h4>📝 Build Notes</h4>
+            <div id="buildNotes" class="build-notes"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Fallback JSON display -->
+      <div id="affix-json-fallback" class="hidden">
+        <pre id="affix-json"></pre>
+      </div>
     </section>
 
     <section id="tempering" class="tab">

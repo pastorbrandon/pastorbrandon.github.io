@@ -1139,6 +1139,27 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
   
+  // Set up tab switching
+  const tabButtons = document.querySelectorAll('#tabs button');
+  const tabSections = document.querySelectorAll('.tab');
+  
+  tabButtons.forEach(button => {
+    button.addEventListener('click', () => {
+      const targetTab = button.dataset.tab;
+      
+      // Update active tab button
+      tabButtons.forEach(btn => btn.classList.remove('active'));
+      button.classList.add('active');
+      
+      // Update active tab section
+      tabSections.forEach(section => section.classList.remove('active'));
+      const targetSection = document.getElementById(targetTab);
+      if (targetSection) {
+        targetSection.classList.add('active');
+      }
+    });
+  });
+  
   // Set up gear slot click handlers
   SLOTS.forEach(slot => {
     const slotElement = document.querySelector(`[data-slot="${slot}"]`);
@@ -1238,4 +1259,331 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   
   console.log('App initialized successfully');
+  
+  // Initialize affixes interface
+  await initializeAffixes();
 });
+
+// Affixes Interface Functionality
+let currentAffixSlot = null;
+let affixData = null;
+
+// Load affix data from rulepack
+async function loadAffixData() {
+  try {
+    const response = await fetch('rulepack.json');
+    affixData = await response.json();
+    console.log('Affix data loaded:', affixData);
+  } catch (error) {
+    console.error('Failed to load affix data:', error);
+    // Fallback to JSON display
+    document.getElementById('affix-json-fallback').classList.remove('hidden');
+  }
+}
+
+// Initialize affixes interface
+function initializeAffixesInterface() {
+  // Set up gear option click handlers
+  const gearOptions = document.querySelectorAll('.gear-option');
+  gearOptions.forEach(option => {
+    option.addEventListener('click', () => {
+      const slot = option.dataset.slot;
+      selectGearSlot(slot);
+    });
+  });
+
+  // Set up close button
+  const closeBtn = document.getElementById('closeAffixDetails');
+  if (closeBtn) {
+    closeBtn.addEventListener('click', () => {
+      hideAffixDetails();
+    });
+  }
+}
+
+// Select a gear slot and show affix details
+function selectGearSlot(slot) {
+  currentAffixSlot = slot;
+  
+  // Update active state
+  document.querySelectorAll('.gear-option').forEach(option => {
+    option.classList.remove('active');
+  });
+  document.querySelector(`[data-slot="${slot}"]`).classList.add('active');
+  
+  // Show affix details
+  showAffixDetails(slot);
+}
+
+// Show affix details for selected slot
+function showAffixDetails(slot) {
+  if (!affixData || !affixData.slots) {
+    console.error('Affix data not loaded');
+    return;
+  }
+
+  // Get slot data (handle both ring1/ring2 and ring)
+  let slotData = affixData.slots[slot];
+  if (!slotData && (slot === 'ring1' || slot === 'ring2')) {
+    slotData = affixData.slots['Ring1'] || affixData.slots['Ring2'];
+  }
+  if (!slotData) {
+    slotData = affixData.slots[slot.charAt(0).toUpperCase() + slot.slice(1)];
+  }
+
+  if (!slotData) {
+    console.error('No data found for slot:', slot);
+    return;
+  }
+
+  // Update title
+  const title = document.getElementById('affixSlotTitle');
+  title.textContent = `${getSlotDisplayName(slot)} Affixes`;
+
+  // Populate Best in Slot items
+  populateBisItems(slotData.bis || []);
+
+  // Populate Mandatory Affixes
+  populateAffixList('mandatoryAffixes', slotData.mandatoryAffixes || [], 'mandatory');
+
+  // Populate Preferred Affixes
+  populateAffixList('preferredAffixes', slotData.preferredAffixes || [], 'preferred');
+
+  // Populate Tempering Options
+  populateAffixList('temperingOptions', slotData.tempering || [], 'tempering');
+
+  // Populate Aspects
+  populateAspects(slotData.aspects || []);
+
+  // Populate Enchantment Targets
+  populateEnchantments(slotData.enchantTargets || []);
+
+  // Populate Build Notes
+  populateBuildNotes(slot);
+
+  // Show the details panel
+  document.getElementById('affixDetails').classList.remove('hidden');
+}
+
+// Hide affix details
+function hideAffixDetails() {
+  document.getElementById('affixDetails').classList.add('hidden');
+  document.querySelectorAll('.gear-option').forEach(option => {
+    option.classList.remove('active');
+  });
+  currentAffixSlot = null;
+}
+
+// Get display name for slot
+function getSlotDisplayName(slot) {
+  const slotNames = {
+    'helm': 'Helm',
+    'amulet': 'Amulet',
+    'chest': 'Chest',
+    'gloves': 'Gloves',
+    'pants': 'Pants',
+    'boots': 'Boots',
+    'ring': 'Ring',
+    'ring1': 'Ring 1',
+    'ring2': 'Ring 2',
+    'weapon': 'Weapon',
+    'offhand': 'Off-hand'
+  };
+  return slotNames[slot] || slot;
+}
+
+// Populate Best in Slot items
+function populateBisItems(bisItems) {
+  const container = document.getElementById('bisItems');
+  container.innerHTML = '';
+
+  bisItems.forEach(item => {
+    const isUnique = item.includes('(Unique)');
+    const div = document.createElement('div');
+    div.className = `bis-item ${isUnique ? 'unique' : ''}`;
+    
+    const name = document.createElement('div');
+    name.className = 'bis-item-name';
+    name.textContent = item.replace(' (Unique)', '').replace(' (Alternative)', '');
+    
+    const desc = document.createElement('div');
+    desc.className = 'bis-item-desc';
+    if (isUnique) {
+      desc.textContent = 'Unique Item - Best in Slot';
+    } else if (item.includes('(Alternative)')) {
+      desc.textContent = 'Alternative Option';
+    } else {
+      desc.textContent = 'Best in Slot Item';
+    }
+    
+    div.appendChild(name);
+    div.appendChild(desc);
+    container.appendChild(div);
+  });
+}
+
+// Populate affix list
+function populateAffixList(containerId, affixes, type) {
+  const container = document.getElementById(containerId);
+  container.innerHTML = '';
+
+  affixes.forEach((affix, index) => {
+    const div = document.createElement('div');
+    div.className = 'affix-item';
+    
+    const name = document.createElement('div');
+    name.className = 'affix-name';
+    name.textContent = affix;
+    
+    const priority = document.createElement('div');
+    priority.className = 'affix-priority';
+    priority.textContent = type === 'mandatory' ? 'Required' : 
+                          type === 'preferred' ? 'Preferred' : 'Temper';
+    
+    div.appendChild(name);
+    div.appendChild(priority);
+    container.appendChild(div);
+  });
+}
+
+// Populate aspects
+function populateAspects(aspects) {
+  const container = document.getElementById('recommendedAspects');
+  container.innerHTML = '';
+
+  aspects.forEach(aspect => {
+    const div = document.createElement('div');
+    div.className = 'aspect-item';
+    
+    const name = document.createElement('div');
+    name.className = 'aspect-name';
+    name.textContent = aspect;
+    
+    const desc = document.createElement('div');
+    desc.className = 'aspect-desc';
+    desc.textContent = getAspectDescription(aspect);
+    
+    div.appendChild(name);
+    div.appendChild(desc);
+    container.appendChild(div);
+  });
+}
+
+// Get aspect description
+function getAspectDescription(aspectName) {
+  const descriptions = {
+    'Snowveiled Aspect': 'Ice Armor makes you unstoppable and grants 25% Damage Reduction for 3.5-5.5 seconds.',
+    'Aspect of Shredding Blades': 'Ice Blades chance to apply Vulnerable increased by 20% and duration increased by 4 seconds. Gain 15-35% Vulnerable Damage.',
+    'Aspect of Concentration': 'Casting a Conjuration Skill grants 15-25% Damage Reduction for 5 seconds.',
+    'Flash Fire Aspect': 'Increases Critical Strike Damage of Pyromancy Skills by 25-45%. Double this bonus against Healthy targets.',
+    'Everliving Aspect': 'Take 10-30% less damage from Crowd Controlled or Vulnerable enemies.',
+    'Aspect of the Orange Herald': 'Lucky Hit: Up to 5-13% chance when damaging enemies to reduce Ultimate Skill cooldown by 2 seconds.',
+    'Conceited Aspect': 'Deal 10-30% increased damage while you have a Barrier active.',
+    'Battle Caster\'s Aspect': 'Lucky Hit: 25-45% chance when Conjuration Skills hit to gain +1 Rank to Conjuration skills for 12 seconds (stacks up to 10 times).',
+    'Serpentine Aspect': 'Hydras deal 0.5-1.5% increased damage per Mana you had when Summoned. Casting Hydra consumes all Mana.',
+    'Storm Swell Aspect': 'Deal 15-35% increased damage while Ice Armor is active. Increased by another 15% against Frozen enemies.'
+  };
+  return descriptions[aspectName] || 'Legendary Aspect for this slot.';
+}
+
+// Populate enchantment targets
+function populateEnchantments(enchantments) {
+  const container = document.getElementById('enchantmentTargets');
+  container.innerHTML = '';
+
+  enchantments.forEach(enchantment => {
+    const div = document.createElement('div');
+    div.className = 'enchantment-item';
+    
+    const icon = document.createElement('div');
+    icon.className = 'enchantment-icon';
+    icon.textContent = '🔧';
+    
+    const text = document.createElement('div');
+    text.className = 'enchantment-text';
+    text.textContent = enchantment;
+    
+    div.appendChild(icon);
+    div.appendChild(text);
+    container.appendChild(div);
+  });
+}
+
+// Populate build notes
+function populateBuildNotes(slot) {
+  const container = document.getElementById('buildNotes');
+  container.innerHTML = '';
+
+  if (!affixData.buildNotes) return;
+
+  // Add slot-specific notes
+  const slotNotes = getSlotSpecificNotes(slot);
+  if (slotNotes) {
+    const noteDiv = document.createElement('div');
+    noteDiv.className = 'build-note';
+    
+    const title = document.createElement('div');
+    title.className = 'build-note-title';
+    title.textContent = `${getSlotDisplayName(slot)} Specific Notes`;
+    
+    const content = document.createElement('div');
+    content.className = 'build-note-content';
+    content.textContent = slotNotes;
+    
+    noteDiv.appendChild(title);
+    noteDiv.appendChild(content);
+    container.appendChild(noteDiv);
+  }
+
+  // Add general build notes
+  Object.entries(affixData.buildNotes).forEach(([category, notes]) => {
+    if (Array.isArray(notes) && notes.length > 0) {
+      const noteDiv = document.createElement('div');
+      noteDiv.className = 'build-note';
+      
+      const title = document.createElement('div');
+      title.className = 'build-note-title';
+      title.textContent = getCategoryDisplayName(category);
+      
+      const content = document.createElement('div');
+      content.className = 'build-note-content';
+      content.textContent = notes.join('. ');
+      
+      noteDiv.appendChild(title);
+      noteDiv.appendChild(content);
+      container.appendChild(noteDiv);
+    }
+  });
+}
+
+// Get slot-specific notes
+function getSlotSpecificNotes(slot) {
+  const slotNotes = {
+    'helm': 'Harlequin Crest enables 1.5s Evade Teleport breakpoint for speed farming.',
+    'amulet': 'Ophidian Iris is the new Season 9 unique that creates gigantic Hydras with exploding attacks.',
+    'chest': 'Raiment of the Infinite groups and stuns enemies when you Teleport on top of them.',
+    'pants': 'Axial Conduit provides boosted Resource Generation with Greater Affix and Masterworking bonuses.',
+    'boots': 'Target Evade Cooldown Reduction for speed farming. Implicit stat: Attacks Reduce Evade\'s Cooldown by 1.5 Seconds.',
+    'ring1': 'Tal Rasha\'s Iridescent Loop gains buffs from Ice Armor, Teleport, and Hydra casts.',
+    'weapon': 'Serpentine Aspect consumes all Mana to increase Hydra damage. High Maximum Mana is crucial.',
+    'offhand': 'Focus setup preferred for speed farming, Staff for higher damage output.'
+  };
+  return slotNotes[slot];
+}
+
+// Get category display name
+function getCategoryDisplayName(category) {
+  const names = {
+    'keyMechanics': 'Key Build Mechanics',
+    'resourceManagement': 'Resource Management',
+    'criticalStrike': 'Critical Strike Setup',
+    'speedFarming': 'Speed Farming Setup'
+  };
+  return names[category] || category;
+}
+
+// Initialize affixes interface
+async function initializeAffixes() {
+  await loadAffixData();
+  initializeAffixesInterface();
+}

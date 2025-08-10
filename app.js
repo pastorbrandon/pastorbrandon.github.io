@@ -1128,7 +1128,7 @@ function generateRecommendation(slot, newGearData) {
 }
 
 // Wait for DOM to be ready
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   console.log('DOM loaded, initializing...');
   
   // Ensure modal is hidden on page load

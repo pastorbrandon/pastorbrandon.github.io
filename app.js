@@ -110,6 +110,17 @@ function saveBuild(build) {
 let build = loadBuild();
 console.log('Loaded build data:', build);
 
+// Check if there's any problematic data that might cause modal to show
+if (Object.keys(build).length > 0) {
+  console.log('Found saved build data. Checking for problematic entries...');
+  Object.keys(build).forEach(slot => {
+    const gearData = build[slot];
+    if (gearData && gearData.name && gearData.name !== 'No gear equipped') {
+      console.log(`Slot ${slot} has gear:`, gearData.name);
+    }
+  });
+}
+
 // Gear analysis state
 let currentAnalysis = {
   newGearData: null,
@@ -445,7 +456,9 @@ function updateGearDisplay(slot, gearData) {
 
 // Modal functionality
 function showGearModal(slot) {
-  console.log('showGearModal called with slot:', slot);
+  console.log('=== showGearModal called ===');
+  console.log('Slot:', slot);
+  console.log('Call stack:', new Error().stack);
   
   const gearData = build[slot];
   if (!gearData) {
@@ -1123,6 +1136,14 @@ document.addEventListener('DOMContentLoaded', () => {
   if (gearModal) {
     gearModal.classList.add('hidden');
     console.log('Gear modal hidden on page load');
+    
+    // Double-check it's hidden
+    setTimeout(() => {
+      if (!gearModal.classList.contains('hidden')) {
+        console.log('Modal was shown - hiding it again');
+        gearModal.classList.add('hidden');
+      }
+    }, 100);
   }
   
   // Close modal function
@@ -1202,9 +1223,14 @@ document.addEventListener('DOMContentLoaded', () => {
     if (slotElement) {
       const gearName = slotElement.querySelector('.gear-name');
       if (gearName) {
-        gearName.addEventListener('click', () => {
-          console.log('Gear name clicked for slot:', slot);
+        gearName.addEventListener('click', (event) => {
+          console.log('=== Gear name clicked ===');
+          console.log('Slot:', slot);
+          console.log('Event:', event);
+          console.log('Build data for slot:', build[slot]);
+          
           if (build[slot] && build[slot].name && build[slot].name !== 'No gear equipped') {
+            console.log('Showing modal for valid gear');
             showGearModalProper(slot);
             showGearModal(slot); // This populates the content
           } else {

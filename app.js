@@ -117,6 +117,9 @@ let currentAnalysis = {
   directEquip: false
 };
 
+// Modal control flag
+let modalShouldShow = false;
+
 // Function to open file picker for analysis
 function openFilePickerForAnalysis() {
   const fileInput = document.createElement('input');
@@ -443,6 +446,12 @@ function updateGearDisplay(slot, gearData) {
 function showGearModal(slot) {
   console.log('showGearModal called with slot:', slot);
   
+  // Check if modal should be shown
+  if (!modalShouldShow) {
+    console.log('Modal showing blocked by flag');
+    return;
+  }
+  
   // Guard clause - don't show modal if no valid slot
   if (!slot || typeof slot !== 'string') {
     console.log('Invalid slot provided to showGearModal:', slot);
@@ -452,6 +461,12 @@ function showGearModal(slot) {
   const gearData = build[slot];
   if (!gearData) {
     console.log('No gear data found for slot:', slot);
+    return;
+  }
+  
+  // Additional guard - don't show if gear data is empty or invalid
+  if (!gearData.name || gearData.name === 'No gear equipped') {
+    console.log('Invalid gear data - no name or empty gear');
     return;
   }
   
@@ -1120,6 +1135,26 @@ function generateRecommendation(slot, newGearData) {
 document.addEventListener('DOMContentLoaded', () => {
   console.log('DOM loaded, initializing...');
   
+  // IMMEDIATELY hide all modals - do this first
+  const gearModal = document.getElementById('gearModal');
+  if (gearModal) {
+    gearModal.classList.add('hidden');
+    gearModal.style.display = 'none';
+    gearModal.style.visibility = 'hidden';
+    gearModal.style.opacity = '0';
+    gearModal.style.pointerEvents = 'none';
+    gearModal.style.zIndex = '-1';
+    console.log('Gear modal aggressively hidden on page load');
+  }
+  
+  // Also hide affix details modal
+  const affixDetails = document.getElementById('affixDetails');
+  if (affixDetails) {
+    affixDetails.classList.add('hidden');
+    affixDetails.style.display = 'none';
+    console.log('Affix details hidden on page load');
+  }
+  
   // Force hide all modals on page load
   const allModals = document.querySelectorAll('.modal, .affix-details');
   allModals.forEach(modal => {
@@ -1131,23 +1166,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // modal.style.pointerEvents = 'none';
   });
   console.log('All modals forced hidden on page load');
-  
-  // Ensure modal is hidden on page load - more robust approach
-  const gearModal = document.getElementById('gearModal');
-  if (gearModal) {
-    gearModal.classList.add('hidden');
-    gearModal.style.display = 'none';
-    // Remove overly aggressive properties
-    // gearModal.style.visibility = 'hidden';
-    console.log('Gear modal hidden on page load');
-  }
-  
-  // Also ensure affix details modal is hidden
-  const affixDetails = document.getElementById('affixDetails');
-  if (affixDetails) {
-    affixDetails.classList.add('hidden');
-    console.log('Affix details hidden on page load');
-  }
   
   // Close modal function
   function closeGearModal() {
@@ -1164,18 +1182,26 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // Show modal function
   function showGearModalProper(slot) {
+    console.log('showGearModalProper called with slot:', slot);
+    
     if (!slot || !build[slot]) {
       console.log('Cannot show modal - no valid slot or gear data');
+      return;
+    }
+    
+    // Additional validation
+    if (!build[slot].name || build[slot].name === 'No gear equipped') {
+      console.log('Cannot show modal - invalid gear data');
       return;
     }
     
     if (gearModal) {
       gearModal.classList.remove('hidden');
       gearModal.style.display = 'block';
-      // Remove overly aggressive properties
-      // gearModal.style.visibility = 'visible';
-      // gearModal.style.opacity = '1';
-      // gearModal.style.pointerEvents = 'auto';
+      gearModal.style.visibility = 'visible';
+      gearModal.style.opacity = '1';
+      gearModal.style.pointerEvents = 'auto';
+      gearModal.style.zIndex = '1000';
       console.log('Gear modal shown for slot:', slot);
     }
   }
@@ -1239,9 +1265,14 @@ document.addEventListener('DOMContentLoaded', () => {
       if (gearName) {
         gearName.addEventListener('click', () => {
           console.log('Gear name clicked for slot:', slot);
-          if (build[slot]) {
+          // Only show modal if there's valid gear data
+          if (build[slot] && build[slot].name && build[slot].name !== 'No gear equipped') {
+            modalShouldShow = true; // Set flag to allow modal
             showGearModalProper(slot);
             showGearModal(slot); // This populates the content
+            modalShouldShow = false; // Reset flag
+          } else {
+            console.log('No valid gear data for slot:', slot);
           }
         });
       }
@@ -1336,7 +1367,7 @@ document.addEventListener('DOMContentLoaded', () => {
   console.log('App initialized successfully');
   
   // Initialize affixes interface
-  await initializeAffixes();
+  initializeAffixes();
   
   // Test modal state
   const testModal = document.getElementById('gearModal');
@@ -1357,6 +1388,15 @@ document.addEventListener('DOMContentLoaded', () => {
       console.log('Test button clicked!');
     });
   }
+  
+  // Ensure modal stays hidden for 5 seconds
+  setTimeout(() => {
+    if (gearModal) {
+      gearModal.classList.add('hidden');
+      gearModal.style.display = 'none';
+      console.log('Modal forced hidden after 5 seconds');
+    }
+  }, 5000);
 });
 
 // Affixes Interface Functionality

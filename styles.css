@@ -1433,3 +1433,47 @@ footer {
   line-height: 1.4;
   color: var(--muted);
 }
+
+/* Slot Selection Modal */
+.slot-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px;
+  padding: 16px 0;
+}
+
+.slot-option-btn {
+  background: var(--bg);
+  color: var(--fg);
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 12px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.slot-option-btn:hover {
+  border-color: var(--accent);
+  background: var(--card);
+  transform: translateY(-2px);
+}
+
+.slot-option-btn:active {
+  transform: translateY(0);
+}
+
+/* Responsive design for slot options */
+@media (max-width: 768px) {
+  .slot-options {
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    gap: 8px;
+  }
+  
+  .slot-option-btn {
+    padding: 12px 8px;
+    font-size: 12px;
+  }
+}

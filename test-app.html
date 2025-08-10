@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>App Test</title>
+</head>
+<body>
+    <h1>App Test</h1>
+    <p>Testing the Horadric Companion app...</p>
+    
+    <script>
+        // Test if the app loads without errors
+        window.addEventListener('load', () => {
+            console.log('Page loaded successfully');
+            
+            // Check if key elements exist
+            const gearAnalysisPanel = document.getElementById('gearAnalysisPanel');
+            const gearModal = document.getElementById('gearModal');
+            const tabs = document.querySelectorAll('#tabs button');
+            
+            console.log('Gear Analysis Panel:', gearAnalysisPanel);
+            console.log('Gear Modal:', gearModal);
+            console.log('Tab buttons:', tabs.length);
+            
+            // Check if gear analysis panel is hidden by default
+            if (gearAnalysisPanel) {
+                console.log('Gear Analysis Panel hidden:', gearAnalysisPanel.classList.contains('hidden'));
+            }
+            
+            // Check if gear modal is hidden by default
+            if (gearModal) {
+                console.log('Gear Modal hidden:', gearModal.classList.contains('hidden'));
+            }
+        });
+    </script>
+    
+    <iframe src="index.html" width="100%" height="800px"></iframe>
+</body>
+</html>

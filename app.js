@@ -120,9 +120,12 @@ function openFilePickerForAnalysis() {
 
     try {
       // Show loading state
-      const loadingDiv = document.getElementById('loading');
-      loadingDiv.style.display = 'block';
-      loadingDiv.textContent = 'Analyzing gear...';
+      const gearAnalysisPanel = document.getElementById('gearAnalysisPanel');
+      gearAnalysisPanel.classList.remove('hidden');
+      
+      // Update loading text
+      const recommendationText = document.getElementById('recommendationText');
+      recommendationText.textContent = 'Analyzing gear...';
 
       // Convert file to data URL
       const dataUrl = await fileToDataUrl(file);
@@ -152,9 +155,8 @@ function openFilePickerForAnalysis() {
     } catch (error) {
       console.error('Error during analysis:', error);
       alert('Error analyzing gear: ' + error.message);
-    } finally {
-      // Hide loading state
-      document.getElementById('loading').style.display = 'none';
+      // Hide analysis panel on error
+      document.getElementById('gearAnalysisPanel').classList.add('hidden');
     }
   };
   input.click();
@@ -184,7 +186,26 @@ function openFilePicker() {
 
 // Function to show slot selection modal
 function showSlotSelectionModal(imageData) {
-  const modal = document.getElementById('slotModal');
+  // Create modal if it doesn't exist
+  let modal = document.getElementById('slotModal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'slotModal';
+    modal.className = 'modal hidden';
+    modal.innerHTML = `
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Select Gear Slot</h3>
+          <button class="close-btn" onclick="closeSlotModal()">×</button>
+        </div>
+        <div class="modal-body">
+          <div id="slotOptions" class="slot-options"></div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+  }
+
   const slots = ['helm', 'amulet', 'chest', 'gloves', 'pants', 'boots', 'ring1', 'ring2', 'weapon', 'offhand'];
   
   const container = document.getElementById('slotOptions');
@@ -193,14 +214,23 @@ function showSlotSelectionModal(imageData) {
   slots.forEach(slot => {
     const button = document.createElement('button');
     button.textContent = slot.charAt(0).toUpperCase() + slot.slice(1);
+    button.className = 'slot-option-btn';
     button.onclick = () => {
       addGearManually(slot, imageData);
-      modal.classList.add('hidden');
+      closeSlotModal();
     };
     container.appendChild(button);
   });
   
   modal.classList.remove('hidden');
+}
+
+// Function to close slot modal
+function closeSlotModal() {
+  const modal = document.getElementById('slotModal');
+  if (modal) {
+    modal.classList.add('hidden');
+  }
 }
 
 // Function to add gear manually
@@ -249,6 +279,12 @@ function applyReportToSlot(slot, report) {
   const modal = document.getElementById('gearModal');
   if (modal) {
     modal.classList.add('hidden');
+  }
+  
+  // Hide gear analysis panel
+  const gearAnalysisPanel = document.getElementById('gearAnalysisPanel');
+  if (gearAnalysisPanel) {
+    gearAnalysisPanel.classList.add('hidden');
   }
   
   console.log(`Applied gear to ${slot}:`, gearData);
@@ -312,23 +348,20 @@ function getGradeFromScore(score) {
 
 // Function to update gear display
 function updateGearDisplay(slot, gearData) {
-  const slotElement = document.getElementById(slot);
+  const slotElement = document.querySelector(`[data-slot="${slot}"]`);
   if (!slotElement) return;
 
   const nameElement = slotElement.querySelector('.gear-name');
-  const gradeElement = slotElement.querySelector('.gear-grade');
   const addButton = slotElement.querySelector('.add-gear-btn');
 
   if (gearData.name && gearData.name !== 'No gear equipped') {
     nameElement.textContent = gearData.name;
-    gradeElement.textContent = `Grade: ${gearData.grade}`;
-    gradeElement.className = `gear-grade grade-${gearData.grade.toLowerCase()}`;
+    nameElement.setAttribute('data-grade', gearData.grade ? gearData.grade.toLowerCase() : 'unscored');
     addButton.textContent = 'View Details';
     addButton.onclick = () => showGearModal(slot);
   } else {
     nameElement.textContent = 'No gear equipped';
-    gradeElement.textContent = '';
-    gradeElement.className = 'gear-grade';
+    nameElement.setAttribute('data-grade', 'unscored');
     addButton.textContent = '+ Add Gear';
     addButton.onclick = () => openFilePicker();
   }
@@ -340,50 +373,27 @@ function showGearModal(slot) {
   if (!gearData) return;
 
   const modal = document.getElementById('gearModal');
-  const modalContent = document.getElementById('modalContent');
+  const modalTitle = document.getElementById('modalTitle');
+  const modalGearName = document.getElementById('modalGearName');
+  const modalGearStats = document.getElementById('modalGearStats');
+  const modalGearGrade = document.getElementById('modalGearGrade');
 
   // Populate modal content
-  modalContent.innerHTML = `
-    <div class="modal-header">
-      <h2>${gearData.name}</h2>
-      <button class="close-btn" onclick="closeGearModal()">×</button>
-    </div>
-    <div class="modal-body">
-      <div class="gear-info">
-        <p><strong>Slot:</strong> ${slot}</p>
-        <p><strong>Grade:</strong> <span class="grade-${gearData.grade.toLowerCase()}">${gearData.grade}</span></p>
-        <p><strong>Score:</strong> ${gearData.score || 'N/A'}/100</p>
-      </div>
-      
-      <div class="gear-affixes">
-        <h3>Affixes:</h3>
-        <ul>
-          ${gearData.affixes.map(affix => `<li>${affix}</li>`).join('')}
-        </ul>
-      </div>
-      
-      <div class="gear-aspect">
-        <h3>Aspect:</h3>
-        <p>${gearData.aspect}</p>
-      </div>
-      
-      ${gearData.recommendations && gearData.recommendations.length > 0 ? `
-        <div class="gear-recommendations">
-          <h3>Recommendations:</h3>
-          <ul>
-            ${gearData.recommendations.map(rec => `<li>${rec}</li>`).join('')}
-          </ul>
-        </div>
-      ` : ''}
-      
-      ${gearData.imageData ? `
-        <div class="gear-image">
-          <h3>Gear Image:</h3>
-          <img src="${gearData.imageData}" alt="Gear" style="max-width: 100%; height: auto;">
-        </div>
-      ` : ''}
-    </div>
+  modalTitle.textContent = gearData.name;
+  modalGearName.textContent = gearData.name;
+  modalGearName.className = `modal-gear-name ${gearData.grade ? gearData.grade.toLowerCase() : 'unscored'}`;
+  
+  modalGearStats.innerHTML = `
+    <h4>Affixes:</h4>
+    <ul>
+      ${gearData.affixes.map(affix => `<li>${affix}</li>`).join('')}
+    </ul>
+    <h4>Aspect:</h4>
+    <p>${gearData.aspect}</p>
   `;
+  
+  modalGearGrade.textContent = `Grade: ${gearData.grade || 'Unknown'}`;
+  modalGearGrade.className = `modal-gear-grade ${gearData.grade ? gearData.grade.toLowerCase() : 'unscored'}`;
 
   modal.classList.remove('hidden');
 }
@@ -396,44 +406,55 @@ function closeGearModal() {
 
 // Function to show analysis results
 function showAnalysisResults(result) {
-  const modal = document.getElementById('gearModal');
-  const modalContent = document.getElementById('modalContent');
+  const gearAnalysisPanel = document.getElementById('gearAnalysisPanel');
+  const currentGearInfo = document.getElementById('currentGearInfo');
+  const newGearInfo = document.getElementById('newGearInfo');
+  const recommendationText = document.getElementById('recommendationText');
+  const btnSwitch = document.getElementById('btn-switch');
+  const btnDiscard = document.getElementById('btn-discard');
 
-  modalContent.innerHTML = `
-    <div class="modal-header">
-      <h2>Analysis Results</h2>
-      <button class="close-btn" onclick="closeGearModal()">×</button>
-    </div>
-    <div class="modal-body">
-      <div class="analysis-info">
-        <p><strong>Detected Slot:</strong> ${result.slot}</p>
-        <p><strong>Item Name:</strong> ${result.name}</p>
+  // Show current gear info
+  const currentGear = build[result.slot];
+  if (currentGear) {
+    currentGearInfo.innerHTML = `
+      <p class="gear-name">${currentGear.name}</p>
+      <p class="gear-status">Status: ${currentGear.grade || 'Unknown'}</p>
+      <div class="gear-specs">
+        <p>Affixes: ${currentGear.affixes.join(', ')}</p>
+        <p>Aspect: ${currentGear.aspect}</p>
       </div>
-      
-      <div class="analysis-affixes">
-        <h3>Detected Affixes:</h3>
-        <ul>
-          ${result.affixes.map(affix => `<li>${affix}</li>`).join('')}
-        </ul>
-      </div>
-      
-      <div class="analysis-aspect">
-        <h3>Detected Aspect:</h3>
-        <p>${result.aspect}</p>
-      </div>
-      
-      <div class="analysis-actions">
-        <button onclick="applyReportToSlot('${result.slot}', currentAnalysis.gearData)" class="apply-btn">
-          Apply to ${result.slot}
-        </button>
-        <button onclick="showSlotSelectionModal(currentAnalysis.imageData)" class="manual-btn">
-          Choose Different Slot
-        </button>
-      </div>
+    `;
+  } else {
+    currentGearInfo.innerHTML = `
+      <p class="gear-name">No gear equipped</p>
+      <p class="gear-status">Status: —</p>
+      <div class="gear-specs"></div>
+    `;
+  }
+
+  // Show new gear info
+  newGearInfo.innerHTML = `
+    <p class="gear-name">${result.name}</p>
+    <p class="gear-status">Status: Analyzing...</p>
+    <div class="gear-specs">
+      <p>Affixes: ${result.affixes.join(', ')}</p>
+      <p>Aspect: ${result.aspect}</p>
     </div>
   `;
 
-  modal.classList.remove('hidden');
+  // Set up action buttons
+  btnSwitch.onclick = () => {
+    applyReportToSlot(result.slot, result);
+  };
+  
+  btnDiscard.onclick = () => {
+    gearAnalysisPanel.classList.add('hidden');
+  };
+
+  // Show recommendation
+  recommendationText.textContent = `New ${result.slot} detected: ${result.name}. Click "Switch" to apply or "Discard" to ignore.`;
+
+  gearAnalysisPanel.classList.remove('hidden');
 }
 
 // Function to clear build
@@ -448,7 +469,226 @@ function clearBuild() {
       updateGearDisplay(slot, { name: 'No gear equipped' });
     });
     
+    // Hide gear analysis panel
+    const gearAnalysisPanel = document.getElementById('gearAnalysisPanel');
+    if (gearAnalysisPanel) {
+      gearAnalysisPanel.classList.add('hidden');
+    }
+    
     console.log('Build cleared');
+  }
+}
+
+// Function to load and display affix information
+async function loadAffixData() {
+  try {
+    const response = await fetch('rulepack.json');
+    const data = await response.json();
+    return data.buildRules;
+  } catch (error) {
+    console.error('Error loading affix data:', error);
+    return {};
+  }
+}
+
+// Function to show affix details for a specific slot
+async function showAffixDetails(slot) {
+  const affixDetails = document.getElementById('affixDetails');
+  const affixSlotTitle = document.getElementById('affixSlotTitle');
+  const mandatoryAffixes = document.getElementById('mandatoryAffixes');
+  const preferredAffixes = document.getElementById('preferredAffixes');
+  const temperingOptions = document.getElementById('temperingOptions');
+  const recommendedAspects = document.getElementById('recommendedAspects');
+  const enchantmentTargets = document.getElementById('enchantmentTargets');
+  const buildNotes = document.getElementById('buildNotes');
+  
+  // Load affix data
+  const affixData = await loadAffixData();
+  const slotData = affixData[slot] || {};
+  
+  // Update title
+  affixSlotTitle.textContent = slot.charAt(0).toUpperCase() + slot.slice(1);
+  
+  // Populate mandatory affixes
+  mandatoryAffixes.innerHTML = '';
+  if (slotData.mandatoryAffixes && slotData.mandatoryAffixes.length > 0) {
+    slotData.mandatoryAffixes.forEach(affix => {
+      const affixItem = document.createElement('div');
+      affixItem.className = 'affix-item';
+      affixItem.innerHTML = `
+        <span class="affix-name">${affix}</span>
+        <span class="affix-priority">Required</span>
+      `;
+      mandatoryAffixes.appendChild(affixItem);
+    });
+  } else {
+    mandatoryAffixes.innerHTML = '<p>No mandatory affixes defined</p>';
+  }
+  
+  // Populate preferred affixes
+  preferredAffixes.innerHTML = '';
+  if (slotData.preferredAffixes && slotData.preferredAffixes.length > 0) {
+    slotData.preferredAffixes.forEach(affix => {
+      const affixItem = document.createElement('div');
+      affixItem.className = 'affix-item';
+      affixItem.innerHTML = `
+        <span class="affix-name">${affix}</span>
+        <span class="affix-priority">Preferred</span>
+      `;
+      preferredAffixes.appendChild(affixItem);
+    });
+  } else {
+    preferredAffixes.innerHTML = '<p>No preferred affixes defined</p>';
+  }
+  
+  // Populate tempering options
+  temperingOptions.innerHTML = '';
+  if (slotData.temperingOptions && slotData.temperingOptions.length > 0) {
+    slotData.temperingOptions.forEach(option => {
+      const affixItem = document.createElement('div');
+      affixItem.className = 'affix-item';
+      affixItem.innerHTML = `
+        <span class="affix-name">${option}</span>
+        <span class="affix-priority">Tempering</span>
+      `;
+      temperingOptions.appendChild(affixItem);
+    });
+  } else {
+    temperingOptions.innerHTML = '<p>No tempering options defined</p>';
+  }
+  
+  // Populate recommended aspects
+  recommendedAspects.innerHTML = '';
+  if (slotData.bestAspects && slotData.bestAspects.length > 0) {
+    slotData.bestAspects.forEach(aspect => {
+      const aspectItem = document.createElement('div');
+      aspectItem.className = 'aspect-item';
+      aspectItem.innerHTML = `
+        <div class="aspect-name">${aspect}</div>
+        <div class="aspect-desc">Best in slot aspect</div>
+      `;
+      recommendedAspects.appendChild(aspectItem);
+    });
+  } else {
+    recommendedAspects.innerHTML = '<p>No recommended aspects defined</p>';
+  }
+  
+  // Populate enchantment targets
+  enchantmentTargets.innerHTML = '';
+  if (slotData.enchantmentTargets && slotData.enchantmentTargets.length > 0) {
+    slotData.enchantmentTargets.forEach(target => {
+      const enchantmentItem = document.createElement('div');
+      enchantmentItem.className = 'enchantment-item';
+      enchantmentItem.innerHTML = `
+        <span class="enchantment-icon">🔧</span>
+        <span class="enchantment-text">${target}</span>
+      `;
+      enchantmentTargets.appendChild(enchantmentItem);
+    });
+  } else {
+    enchantmentTargets.innerHTML = '<p>No enchantment targets defined</p>';
+  }
+  
+  // Populate build notes
+  buildNotes.innerHTML = '';
+  if (slotData.notes && slotData.notes.length > 0) {
+    slotData.notes.forEach(note => {
+      const noteItem = document.createElement('div');
+      noteItem.className = 'build-note';
+      noteItem.innerHTML = `
+        <div class="build-note-content">${note}</div>
+      `;
+      buildNotes.appendChild(noteItem);
+    });
+  } else {
+    buildNotes.innerHTML = '<p>No build notes available</p>';
+  }
+  
+  // Show the affix details panel
+  affixDetails.classList.remove('hidden');
+}
+
+// Function to load and display tempering data
+async function loadTemperingData() {
+  try {
+    const response = await fetch('rulepack.json');
+    const data = await response.json();
+    const temperingJson = document.getElementById('tempering-json');
+    if (temperingJson) {
+      temperingJson.textContent = JSON.stringify(data.tempering || {}, null, 2);
+    }
+  } catch (error) {
+    console.error('Error loading tempering data:', error);
+  }
+}
+
+// Function to load and display masterworking data
+async function loadMasterworkingData() {
+  try {
+    const response = await fetch('rulepack.json');
+    const data = await response.json();
+    const mwJson = document.getElementById('mw-json');
+    if (mwJson) {
+      mwJson.textContent = JSON.stringify(data.masterworking || {}, null, 2);
+    }
+  } catch (error) {
+    console.error('Error loading masterworking data:', error);
+  }
+}
+
+// Function to load and display skills data
+async function loadSkillsData() {
+  try {
+    const response = await fetch('rulepack.json');
+    const data = await response.json();
+    const skillsList = document.getElementById('skills-list');
+    if (skillsList && data.skills) {
+      skillsList.innerHTML = '';
+      data.skills.forEach(skill => {
+        const li = document.createElement('li');
+        li.textContent = skill;
+        skillsList.appendChild(li);
+      });
+    }
+  } catch (error) {
+    console.error('Error loading skills data:', error);
+  }
+}
+
+// Function to load and display paragon data
+async function loadParagonData() {
+  try {
+    const response = await fetch('rulepack.json');
+    const data = await response.json();
+    const paragonList = document.getElementById('paragon-list');
+    if (paragonList && data.paragon) {
+      paragonList.innerHTML = '';
+      data.paragon.forEach(item => {
+        const li = document.createElement('li');
+        li.textContent = item;
+        paragonList.appendChild(li);
+      });
+    }
+  } catch (error) {
+    console.error('Error loading paragon data:', error);
+  }
+}
+
+// Function to load and save notes
+function loadNotes() {
+  const notesText = document.getElementById('notes-text');
+  if (notesText) {
+    const savedNotes = localStorage.getItem('hydraSorcererNotes');
+    if (savedNotes) {
+      notesText.value = savedNotes;
+    }
+  }
+}
+
+function saveNotes() {
+  const notesText = document.getElementById('notes-text');
+  if (notesText) {
+    localStorage.setItem('hydraSorcererNotes', notesText.value);
   }
 }
 
@@ -459,17 +699,85 @@ document.addEventListener('DOMContentLoaded', () => {
   // Load build data
   loadBuild();
   
+  // Load notes
+  loadNotes();
+  
+  // Set up tab functionality
+  const tabButtons = document.querySelectorAll('#tabs button');
+  const tabSections = document.querySelectorAll('.tab');
+  
+  tabButtons.forEach(button => {
+    button.addEventListener('click', () => {
+      const targetTab = button.getAttribute('data-tab');
+      
+      // Remove active class from all buttons and sections
+      tabButtons.forEach(btn => btn.classList.remove('active'));
+      tabSections.forEach(section => section.classList.remove('active'));
+      
+      // Add active class to clicked button and target section
+      button.classList.add('active');
+      const targetSection = document.getElementById(targetTab);
+      if (targetSection) {
+        targetSection.classList.add('active');
+        
+        // Load tab-specific data
+        if (targetTab === 'tempering') {
+          loadTemperingData();
+        } else if (targetTab === 'masterworking') {
+          loadMasterworkingData();
+        } else if (targetTab === 'skills') {
+          loadSkillsData();
+        } else if (targetTab === 'paragon') {
+          loadParagonData();
+        }
+      }
+    });
+  });
+  
+  // Set up notes auto-save
+  const notesText = document.getElementById('notes-text');
+  if (notesText) {
+    notesText.addEventListener('input', saveNotes);
+  }
+  
+  // Set up affix gear selector
+  const gearOptions = document.querySelectorAll('.gear-option');
+  gearOptions.forEach(option => {
+    option.addEventListener('click', () => {
+      const slot = option.getAttribute('data-slot');
+      showAffixDetails(slot);
+    });
+  });
+  
+  // Set up affix details close button
+  const closeAffixDetails = document.getElementById('closeAffixDetails');
+  if (closeAffixDetails) {
+    closeAffixDetails.addEventListener('click', () => {
+      const affixDetails = document.getElementById('affixDetails');
+      affixDetails.classList.add('hidden');
+    });
+  }
+  
   // Set up event listeners
-  document.getElementById('checkGearBtn').addEventListener('click', openFilePickerForAnalysis);
-  document.getElementById('clearBuildBtn').addEventListener('click', clearBuild);
+  const checkGearBtn = document.getElementById('btn-check-gear');
+  if (checkGearBtn) {
+    checkGearBtn.addEventListener('click', openFilePickerForAnalysis);
+  }
+  
+  const clearBuildBtn = document.getElementById('btn-clear-build');
+  if (clearBuildBtn) {
+    clearBuildBtn.addEventListener('click', clearBuild);
+  }
   
   // Set up gear slot click handlers
   const slots = ['helm', 'amulet', 'chest', 'gloves', 'pants', 'boots', 'ring1', 'ring2', 'weapon', 'offhand'];
   slots.forEach(slot => {
-    const slotElement = document.getElementById(slot);
+    const slotElement = document.querySelector(`[data-slot="${slot}"]`);
     if (slotElement) {
       const addButton = slotElement.querySelector('.add-gear-btn');
-      addButton.addEventListener('click', () => openFilePicker());
+      if (addButton) {
+        addButton.addEventListener('click', () => openFilePicker());
+      }
     }
   });
   
@@ -483,6 +791,17 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   });
+  
+  // Set up specific close modal button
+  const closeModalBtn = document.getElementById('closeModal');
+  if (closeModalBtn) {
+    closeModalBtn.addEventListener('click', () => {
+      const modal = document.getElementById('gearModal');
+      if (modal) {
+        modal.classList.add('hidden');
+      }
+    });
+  }
   
   // Close modal when clicking outside
   const modals = document.querySelectorAll('.modal');

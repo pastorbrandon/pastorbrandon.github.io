@@ -276,10 +276,7 @@ function applyReportToSlot(slot, report) {
   updateGearDisplay(slot, gearData);
   
   // Close modal if open
-  const modal = document.getElementById('gearModal');
-  if (modal) {
-    modal.classList.add('hidden');
-  }
+  window.__hcCloseDetails?.();
   
   // Hide gear analysis panel
   const gearAnalysisPanel = document.getElementById('gearAnalysisPanel');
@@ -372,36 +369,30 @@ function showGearModal(slot) {
   const gearData = build[slot];
   if (!gearData) return;
 
-  const modal = document.getElementById('gearModal');
-  const modalTitle = document.getElementById('modalTitle');
-  const modalGearName = document.getElementById('modalGearName');
-  const modalGearStats = document.getElementById('modalGearStats');
-  const modalGearGrade = document.getElementById('modalGearGrade');
+  const detailsTitle = document.getElementById('detailsTitle');
+  const detailsBody = document.getElementById('detailsBody');
 
   // Populate modal content
-  modalTitle.textContent = gearData.name;
-  modalGearName.textContent = gearData.name;
-  modalGearName.className = `modal-gear-name ${gearData.grade ? gearData.grade.toLowerCase() : 'unscored'}`;
+  detailsTitle.textContent = gearData.name;
   
-  modalGearStats.innerHTML = `
-    <h4>Affixes:</h4>
-    <ul>
-      ${gearData.affixes.map(affix => `<li>${affix}</li>`).join('')}
-    </ul>
-    <h4>Aspect:</h4>
-    <p>${gearData.aspect}</p>
-  `;
+  const gearInfo = {
+    name: gearData.name,
+    slot: slot,
+    grade: gearData.grade || 'Unknown',
+    affixes: gearData.affixes || [],
+    aspect: gearData.aspect || 'None',
+    score: gearData.score || 'N/A'
+  };
   
-  modalGearGrade.textContent = `Grade: ${gearData.grade || 'Unknown'}`;
-  modalGearGrade.className = `modal-gear-grade ${gearData.grade ? gearData.grade.toLowerCase() : 'unscored'}`;
+  detailsBody.textContent = JSON.stringify(gearInfo, null, 2);
 
-  modal.classList.remove('hidden');
+  // Open the modal using the new system
+  window.__hcOpenDetails?.();
 }
 
 // Function to close gear modal
 function closeGearModal() {
-  const modal = document.getElementById('gearModal');
-  modal.classList.add('hidden');
+  window.__hcCloseDetails?.();
 }
 
 // Function to show analysis results
@@ -702,6 +693,44 @@ document.addEventListener('DOMContentLoaded', () => {
   // Load notes
   loadNotes();
   
+  // ----- Gear Details modal wiring (robust) -----
+  (function initDetailsModal(){
+    const modal  = document.getElementById('detailsModal');
+    const closeB = document.getElementById('detailsClose');
+    const bodyEl = document.body;
+
+    if (!modal) return; // safe guard
+
+    function openDetails() {
+      modal.classList.remove('hidden');
+      bodyEl.classList.add('no-scroll');
+    }
+    function closeDetails() {
+      modal.classList.add('hidden');
+      bodyEl.classList.remove('no-scroll');
+    }
+
+    // expose for other code
+    window.__hcOpenDetails  = openDetails;
+    window.__hcCloseDetails = closeDetails;
+
+    // force closed on first load (even if HTML shipped visible)
+    closeDetails();
+
+    // close button
+    closeB?.addEventListener('click', closeDetails);
+
+    // click outside the card
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) closeDetails();
+    });
+
+    // Esc key
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeDetails();
+    });
+  })();
+  
   // Set up tab functionality
   const tabButtons = document.querySelectorAll('#tabs button');
   const tabSections = document.querySelectorAll('.tab');
@@ -781,7 +810,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
   
-  // Set up modal close handlers
+  // Legacy modal close handlers (for backward compatibility with other modals)
   const closeButtons = document.querySelectorAll('.close-btn');
   closeButtons.forEach(button => {
     button.addEventListener('click', () => {
@@ -792,20 +821,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
   
-  // Set up specific close modal button
-  const closeModalBtn = document.getElementById('closeModal');
-  if (closeModalBtn) {
-    closeModalBtn.addEventListener('click', () => {
-      const modal = document.getElementById('gearModal');
-      if (modal) {
-        modal.classList.add('hidden');
-      }
-    });
-  }
-  
-  // Close modal when clicking outside
-  const modals = document.querySelectorAll('.modal');
-  modals.forEach(modal => {
+  // Close legacy modals when clicking outside
+  const legacyModals = document.querySelectorAll('.modal:not(#detailsModal)');
+  legacyModals.forEach(modal => {
     modal.addEventListener('click', (e) => {
       if (e.target === modal) {
         modal.classList.add('hidden');

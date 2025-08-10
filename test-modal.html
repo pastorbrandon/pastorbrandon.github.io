@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modal Test</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <h1>Modal Test</h1>
+    <button onclick="testOpenModal()">Open Modal</button>
+    <button onclick="testCloseModal()">Close Modal</button>
+    
+    <!-- Gear Details Modal -->
+    <div id="detailsModal" class="modal hidden" aria-hidden="true">
+        <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="detailsTitle">
+            <button id="detailsClose" class="close" aria-label="Close">×</button>
+            <h3 id="detailsTitle">Item</h3>
+            <pre id="detailsBody"></pre>
+        </div>
+    </div>
+
+    <script>
+        // ----- Gear Details modal wiring (robust) -----
+        (function initDetailsModal(){
+            const modal  = document.getElementById('detailsModal');
+            const closeB = document.getElementById('detailsClose');
+            const bodyEl = document.body;
+
+            if (!modal) return; // safe guard
+
+            function openDetails() {
+                modal.classList.remove('hidden');
+                bodyEl.classList.add('no-scroll');
+            }
+            function closeDetails() {
+                modal.classList.add('hidden');
+                bodyEl.classList.remove('no-scroll');
+            }
+
+            // expose for other code
+            window.__hcOpenDetails  = openDetails;
+            window.__hcCloseDetails = closeDetails;
+
+            // force closed on first load (even if HTML shipped visible)
+            closeDetails();
+
+            // close button
+            closeB?.addEventListener('click', closeDetails);
+
+            // click outside the card
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) closeDetails();
+            });
+
+            // Esc key
+            window.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') closeDetails();
+            });
+        })();
+
+        function testOpenModal() {
+            document.getElementById('detailsTitle').textContent = 'Test Item';
+            document.getElementById('detailsBody').textContent = 'This is a test modal with sample data.';
+            window.__hcOpenDetails?.();
+        }
+
+        function testCloseModal() {
+            window.__hcCloseDetails?.();
+        }
+    </script>
+</body>
+</html>

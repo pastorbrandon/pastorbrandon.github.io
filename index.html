@@ -123,18 +123,11 @@
       </div>
       
       <!-- Gear Details Modal -->
-      <div id="gearModal" class="modal hidden">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h3 id="modalTitle">Gear Details</h3>
-            <button id="closeModal" class="close-btn">×</button>
-          </div>
-          <div class="modal-body">
-            <div id="modalGearName" class="modal-gear-name"></div>
-            <div id="modalGearStats" class="modal-gear-stats"></div>
-            <div id="modalGearGrade" class="modal-gear-grade"></div>
-            <div id="modalImprovement" class="modal-improvement hidden"></div>
-          </div>
+      <div id="detailsModal" class="modal hidden" aria-hidden="true">
+        <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="detailsTitle">
+          <button id="detailsClose" class="close" aria-label="Close">×</button>
+          <h3 id="detailsTitle">Item</h3>
+          <pre id="detailsBody"></pre>
         </div>
       </div>
       

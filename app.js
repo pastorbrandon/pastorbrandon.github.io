@@ -1,20 +1,6 @@
 // Test if JavaScript is running
 console.log('=== JAVASCRIPT LOADED ===');
 
-// IMMEDIATELY hide modal - do this before anything else
-(function() {
-  const modal = document.getElementById('gearModal');
-  if (modal) {
-    modal.style.display = 'none';
-    modal.style.visibility = 'hidden';
-    modal.style.opacity = '0';
-    modal.style.pointerEvents = 'none';
-    modal.style.zIndex = '-1';
-    modal.classList.add('hidden');
-    console.log('Modal immediately hidden on script load');
-  }
-})();
-
 // Function URL for Netlify
 const FN_URL = location.hostname.endsWith('netlify.app')
   ? '/.netlify/functions/analyze-gear'
@@ -122,6 +108,7 @@ function saveBuild(build) {
 }
 
 let build = loadBuild();
+console.log('Loaded build data:', build);
 
 // Gear analysis state
 let currentAnalysis = {
@@ -133,7 +120,6 @@ let currentAnalysis = {
 
 // Modal control flag
 let modalShouldShow = false;
-let modalLocked = true; // Global lock to prevent modal from showing
 
 // Function to open file picker for analysis
 function openFilePickerForAnalysis() {
@@ -461,33 +447,9 @@ function updateGearDisplay(slot, gearData) {
 function showGearModal(slot) {
   console.log('showGearModal called with slot:', slot);
   
-  // Check global lock first
-  if (modalLocked) {
-    console.log('Modal is locked - cannot show');
-    return;
-  }
-  
-  // Check if modal should be shown
-  if (!modalShouldShow) {
-    console.log('Modal showing blocked by flag');
-    return;
-  }
-  
-  // Guard clause - don't show modal if no valid slot
-  if (!slot || typeof slot !== 'string') {
-    console.log('Invalid slot provided to showGearModal:', slot);
-    return;
-  }
-  
   const gearData = build[slot];
   if (!gearData) {
     console.log('No gear data found for slot:', slot);
-    return;
-  }
-  
-  // Additional guard - don't show if gear data is empty or invalid
-  if (!gearData.name || gearData.name === 'No gear equipped') {
-    console.log('Invalid gear data - no name or empty gear');
     return;
   }
   
@@ -1156,73 +1118,30 @@ function generateRecommendation(slot, newGearData) {
 document.addEventListener('DOMContentLoaded', () => {
   console.log('DOM loaded, initializing...');
   
-  // IMMEDIATELY hide all modals - do this first
+  // Ensure modal is hidden on page load
   const gearModal = document.getElementById('gearModal');
   if (gearModal) {
     gearModal.classList.add('hidden');
-    gearModal.style.display = 'none';
-    gearModal.style.visibility = 'hidden';
-    gearModal.style.opacity = '0';
-    gearModal.style.pointerEvents = 'none';
-    gearModal.style.zIndex = '-1';
-    console.log('Gear modal aggressively hidden on page load');
+    console.log('Gear modal hidden on page load');
   }
-  
-  // Also hide affix details modal
-  const affixDetails = document.getElementById('affixDetails');
-  if (affixDetails) {
-    affixDetails.classList.add('hidden');
-    affixDetails.style.display = 'none';
-    console.log('Affix details hidden on page load');
-  }
-  
-  // Force hide all modals on page load
-  const allModals = document.querySelectorAll('.modal, .affix-details');
-  allModals.forEach(modal => {
-    modal.classList.add('hidden');
-    modal.style.display = 'none';
-    // Remove the overly aggressive properties that block interactions
-    // modal.style.visibility = 'hidden';
-    // modal.style.opacity = '0';
-    // modal.style.pointerEvents = 'none';
-  });
-  console.log('All modals forced hidden on page load');
   
   // Close modal function
   function closeGearModal() {
     if (gearModal) {
       gearModal.classList.add('hidden');
-      gearModal.style.display = 'none';
-      // Remove overly aggressive properties
-      // gearModal.style.visibility = 'hidden';
-      // gearModal.style.opacity = '0';
-      // gearModal.style.pointerEvents = 'none';
       console.log('Gear modal closed');
     }
   }
   
   // Show modal function
   function showGearModalProper(slot) {
-    console.log('showGearModalProper called with slot:', slot);
-    
     if (!slot || !build[slot]) {
       console.log('Cannot show modal - no valid slot or gear data');
       return;
     }
     
-    // Additional validation
-    if (!build[slot].name || build[slot].name === 'No gear equipped') {
-      console.log('Cannot show modal - invalid gear data');
-      return;
-    }
-    
     if (gearModal) {
       gearModal.classList.remove('hidden');
-      gearModal.style.display = 'block';
-      gearModal.style.visibility = 'visible';
-      gearModal.style.opacity = '1';
-      gearModal.style.pointerEvents = 'auto';
-      gearModal.style.zIndex = '1000';
       console.log('Gear modal shown for slot:', slot);
     }
   }
@@ -1285,14 +1204,9 @@ document.addEventListener('DOMContentLoaded', () => {
       if (gearName) {
         gearName.addEventListener('click', () => {
           console.log('Gear name clicked for slot:', slot);
-          // Only show modal if there's valid gear data
           if (build[slot] && build[slot].name && build[slot].name !== 'No gear equipped') {
-            modalLocked = false; // Unlock modal
-            modalShouldShow = true; // Set flag to allow modal
             showGearModalProper(slot);
             showGearModal(slot); // This populates the content
-            modalShouldShow = false; // Reset flag
-            modalLocked = true; // Re-lock modal
           } else {
             console.log('No valid gear data for slot:', slot);
           }
@@ -1390,61 +1304,6 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // Initialize affixes interface
   await initializeAffixesInterface();
-  
-  // Test modal state
-  const testModal = document.getElementById('gearModal');
-  if (testModal) {
-    const isHidden = testModal.classList.contains('hidden') && 
-                    testModal.style.display === 'none';
-    console.log('Modal hidden state test:', isHidden ? 'PASSED' : 'FAILED');
-  }
-  
-  // Test button functionality
-  console.log('Testing button functionality...');
-  const testButtons = document.querySelectorAll('button');
-  console.log('Found buttons:', testButtons.length);
-  
-  // Add a simple test to the first button we find
-  if (testButtons.length > 0) {
-    testButtons[0].addEventListener('click', () => {
-      console.log('Test button clicked!');
-    });
-  }
-  
-  // Ensure modal stays hidden for 5 seconds
-  setTimeout(() => {
-    if (gearModal) {
-      gearModal.classList.add('hidden');
-      gearModal.style.display = 'none';
-      console.log('Modal forced hidden after 5 seconds');
-    }
-  }, 5000);
-  
-  // Add mutation observer to watch for modal changes
-  if (gearModal) {
-    const observer = new MutationObserver((mutations) => {
-      mutations.forEach((mutation) => {
-        if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
-          if (!gearModal.classList.contains('hidden')) {
-            console.log('Modal detected as visible - hiding immediately');
-            gearModal.classList.add('hidden');
-            gearModal.style.display = 'none';
-            gearModal.style.visibility = 'hidden';
-            gearModal.style.opacity = '0';
-            gearModal.style.pointerEvents = 'none';
-            gearModal.style.zIndex = '-1';
-          }
-        }
-      });
-    });
-    
-    observer.observe(gearModal, {
-      attributes: true,
-      attributeFilter: ['class', 'style']
-    });
-    
-    console.log('Mutation observer added to modal');
-  }
 });
 
 // Affixes Interface Functionality

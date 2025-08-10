@@ -1128,7 +1128,7 @@ function generateRecommendation(slot, newGearData) {
 }
 
 // Wait for DOM to be ready
-document.addEventListener('DOMContentLoaded', async () => {
+document.addEventListener('DOMContentLoaded', () => {
   console.log('DOM loaded, initializing...');
   
   // Ensure modal is hidden on page load
@@ -1329,7 +1329,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   console.log('App initialized successfully');
   
   // Initialize affixes interface
-  await initializeAffixesInterface();
+  initializeAffixesInterface();
 });
 
 // Affixes Interface Functionality
@@ -1355,15 +1355,22 @@ async function loadAffixData() {
 }
 
 // Initialize affixes interface
-async function initializeAffixesInterface() {
+function initializeAffixesInterface() {
   console.log('Initializing affixes interface...');
   
-  // Wait for affix data to load
+  // Load affix data if not already loaded
   if (!affixData) {
-    console.log('Waiting for affix data to load...');
-    await loadAffixData();
+    console.log('Loading affix data...');
+    loadAffixData().then(() => {
+      console.log('Affix data loaded, setting up interface...');
+      setupAffixesInterface();
+    });
+  } else {
+    setupAffixesInterface();
   }
-  
+}
+
+function setupAffixesInterface() {
   // Set up gear option click handlers
   const gearOptions = document.querySelectorAll('.gear-option');
   console.log('Found gear options:', gearOptions.length);
@@ -1685,10 +1692,4 @@ function getCategoryDisplayName(category) {
     'speedFarming': 'Speed Farming Setup'
   };
   return names[category] || category;
-}
-
-// Initialize affixes interface
-async function initializeAffixes() {
-  await loadAffixData();
-  initializeAffixesInterface();
 }

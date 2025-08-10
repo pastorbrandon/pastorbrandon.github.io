@@ -117,13 +117,6 @@ let currentAnalysis = {
   directEquip: false
 };
 
-// Force hide modal immediately
-const gearModal = document.getElementById('gearModal');
-if (gearModal) {
-  gearModal.classList.add('hidden');
-  gearModal.style.display = 'none';
-}
-
 // Function to open file picker for analysis
 function openFilePickerForAnalysis() {
   const fileInput = document.createElement('input');
@@ -1132,9 +1125,10 @@ document.addEventListener('DOMContentLoaded', () => {
   allModals.forEach(modal => {
     modal.classList.add('hidden');
     modal.style.display = 'none';
-    modal.style.visibility = 'hidden';
-    modal.style.opacity = '0';
-    modal.style.pointerEvents = 'none';
+    // Remove the overly aggressive properties that block interactions
+    // modal.style.visibility = 'hidden';
+    // modal.style.opacity = '0';
+    // modal.style.pointerEvents = 'none';
   });
   console.log('All modals forced hidden on page load');
   
@@ -1143,7 +1137,8 @@ document.addEventListener('DOMContentLoaded', () => {
   if (gearModal) {
     gearModal.classList.add('hidden');
     gearModal.style.display = 'none';
-    gearModal.style.visibility = 'hidden';
+    // Remove overly aggressive properties
+    // gearModal.style.visibility = 'hidden';
     console.log('Gear modal hidden on page load');
   }
   
@@ -1159,9 +1154,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (gearModal) {
       gearModal.classList.add('hidden');
       gearModal.style.display = 'none';
-      gearModal.style.visibility = 'hidden';
-      gearModal.style.opacity = '0';
-      gearModal.style.pointerEvents = 'none';
+      // Remove overly aggressive properties
+      // gearModal.style.visibility = 'hidden';
+      // gearModal.style.opacity = '0';
+      // gearModal.style.pointerEvents = 'none';
       console.log('Gear modal closed');
     }
   }
@@ -1176,9 +1172,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (gearModal) {
       gearModal.classList.remove('hidden');
       gearModal.style.display = 'block';
-      gearModal.style.visibility = 'visible';
-      gearModal.style.opacity = '1';
-      gearModal.style.pointerEvents = 'auto';
+      // Remove overly aggressive properties
+      // gearModal.style.visibility = 'visible';
+      // gearModal.style.opacity = '1';
+      // gearModal.style.pointerEvents = 'auto';
       console.log('Gear modal shown for slot:', slot);
     }
   }
@@ -1216,6 +1213,8 @@ document.addEventListener('DOMContentLoaded', () => {
   
   tabButtons.forEach(button => {
     button.addEventListener('click', () => {
+      console.log('Tab button clicked:', button.dataset.tab);
+      alert('Tab button clicked: ' + button.dataset.tab); // Simple test
       const targetTab = button.dataset.tab;
       
       // Update active tab button
@@ -1227,6 +1226,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const targetSection = document.getElementById(targetTab);
       if (targetSection) {
         targetSection.classList.add('active');
+        console.log('Switched to tab:', targetTab);
       }
     });
   });
@@ -1238,6 +1238,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const gearName = slotElement.querySelector('.gear-name');
       if (gearName) {
         gearName.addEventListener('click', () => {
+          console.log('Gear name clicked for slot:', slot);
           if (build[slot]) {
             showGearModalProper(slot);
             showGearModal(slot); // This populates the content
@@ -1251,12 +1252,14 @@ document.addEventListener('DOMContentLoaded', () => {
   const addGearButtons = document.querySelectorAll('.add-gear-btn');
   addGearButtons.forEach((btn) => {
     btn.addEventListener('click', (e) => {
+      console.log('Add gear button clicked');
       e.preventDefault();
       e.stopPropagation();
       
       const slotElement = btn.closest('[data-slot]');
       if (slotElement) {
         const slot = slotElement.dataset.slot;
+        console.log('Adding gear for slot:', slot);
         addGearManually(slot);
       }
     });
@@ -1339,9 +1342,20 @@ document.addEventListener('DOMContentLoaded', () => {
   const testModal = document.getElementById('gearModal');
   if (testModal) {
     const isHidden = testModal.classList.contains('hidden') && 
-                    testModal.style.display === 'none' && 
-                    testModal.style.visibility === 'hidden';
+                    testModal.style.display === 'none';
     console.log('Modal hidden state test:', isHidden ? 'PASSED' : 'FAILED');
+  }
+  
+  // Test button functionality
+  console.log('Testing button functionality...');
+  const testButtons = document.querySelectorAll('button');
+  console.log('Found buttons:', testButtons.length);
+  
+  // Add a simple test to the first button we find
+  if (testButtons.length > 0) {
+    testButtons[0].addEventListener('click', () => {
+      console.log('Test button clicked!');
+    });
   }
 });
 
@@ -1364,11 +1378,16 @@ async function loadAffixData() {
 
 // Initialize affixes interface
 function initializeAffixesInterface() {
+  console.log('Initializing affixes interface...');
+  
   // Set up gear option click handlers
   const gearOptions = document.querySelectorAll('.gear-option');
+  console.log('Found gear options:', gearOptions.length);
+  
   gearOptions.forEach(option => {
     option.addEventListener('click', () => {
       const slot = option.dataset.slot;
+      console.log('Gear option clicked:', slot);
       selectGearSlot(slot);
     });
   });
@@ -1377,9 +1396,12 @@ function initializeAffixesInterface() {
   const closeBtn = document.getElementById('closeAffixDetails');
   if (closeBtn) {
     closeBtn.addEventListener('click', () => {
+      console.log('Close affix details clicked');
       hideAffixDetails();
     });
   }
+  
+  console.log('Affixes interface initialized');
 }
 
 // Select a gear slot and show affix details

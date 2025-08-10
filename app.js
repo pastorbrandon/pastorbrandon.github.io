@@ -1240,7 +1240,6 @@ document.addEventListener('DOMContentLoaded', () => {
   tabButtons.forEach(button => {
     button.addEventListener('click', () => {
       console.log('Tab button clicked:', button.dataset.tab);
-      alert('Tab button clicked: ' + button.dataset.tab); // Simple test
       const targetTab = button.dataset.tab;
       
       // Update active tab button
@@ -1367,7 +1366,7 @@ document.addEventListener('DOMContentLoaded', () => {
   console.log('App initialized successfully');
   
   // Initialize affixes interface
-  initializeAffixes();
+  await initializeAffixesInterface();
   
   // Test modal state
   const testModal = document.getElementById('gearModal');
@@ -1406,9 +1405,14 @@ let affixData = null;
 // Load affix data from rulepack
 async function loadAffixData() {
   try {
+    console.log('Loading affix data...');
     const response = await fetch('rulepack.json');
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
     affixData = await response.json();
-    console.log('Affix data loaded:', affixData);
+    console.log('Affix data loaded successfully:', affixData);
+    console.log('Available slots:', Object.keys(affixData.slots || {}));
   } catch (error) {
     console.error('Failed to load affix data:', error);
     // Fallback to JSON display
@@ -1417,8 +1421,14 @@ async function loadAffixData() {
 }
 
 // Initialize affixes interface
-function initializeAffixesInterface() {
+async function initializeAffixesInterface() {
   console.log('Initializing affixes interface...');
+  
+  // Wait for affix data to load
+  if (!affixData) {
+    console.log('Waiting for affix data to load...');
+    await loadAffixData();
+  }
   
   // Set up gear option click handlers
   const gearOptions = document.querySelectorAll('.gear-option');
@@ -1446,13 +1456,18 @@ function initializeAffixesInterface() {
 
 // Select a gear slot and show affix details
 function selectGearSlot(slot) {
+  console.log('selectGearSlot called with slot:', slot);
   currentAffixSlot = slot;
   
   // Update active state
   document.querySelectorAll('.gear-option').forEach(option => {
     option.classList.remove('active');
   });
-  document.querySelector(`[data-slot="${slot}"]`).classList.add('active');
+  const selectedOption = document.querySelector(`[data-slot="${slot}"]`);
+  if (selectedOption) {
+    selectedOption.classList.add('active');
+    console.log('Gear option activated:', slot);
+  }
   
   // Show affix details
   showAffixDetails(slot);
@@ -1460,24 +1475,37 @@ function selectGearSlot(slot) {
 
 // Show affix details for selected slot
 function showAffixDetails(slot) {
+  console.log('showAffixDetails called with slot:', slot);
+  console.log('affixData available:', !!affixData);
+  
   if (!affixData || !affixData.slots) {
     console.error('Affix data not loaded');
+    alert('Affix data not loaded. Please refresh the page.');
     return;
   }
 
+  console.log('Available slots in affixData:', Object.keys(affixData.slots));
+
   // Get slot data (handle both ring1/ring2 and ring)
   let slotData = affixData.slots[slot];
+  console.log('Direct slot data:', slotData);
+  
   if (!slotData && (slot === 'ring1' || slot === 'ring2')) {
     slotData = affixData.slots['Ring1'] || affixData.slots['Ring2'];
+    console.log('Ring fallback data:', slotData);
   }
   if (!slotData) {
     slotData = affixData.slots[slot.charAt(0).toUpperCase() + slot.slice(1)];
+    console.log('Capitalized slot data:', slotData);
   }
 
   if (!slotData) {
     console.error('No data found for slot:', slot);
+    alert(`No affix data found for ${slot}. Please check the rulepack.json file.`);
     return;
   }
+
+  console.log('Final slot data:', slotData);
 
   // Update title
   const title = document.getElementById('affixSlotTitle');

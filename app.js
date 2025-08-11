@@ -169,7 +169,7 @@ function openFilePickerForAnalysis() {
 }
 
 // Function to open file picker for manual gear entry
-function openFilePicker() {
+function openFilePicker(slot = null) {
   const input = document.createElement('input');
   input.type = 'file';
   input.accept = 'image/*';
@@ -180,8 +180,13 @@ function openFilePicker() {
     try {
       const dataUrl = await fileToDataUrl(file);
       
-      // Show slot selection modal
-      showSlotSelectionModal(dataUrl);
+      if (slot) {
+        // Direct upload to specific slot
+        addGearManually(slot, dataUrl);
+      } else {
+        // Show slot selection modal (for backward compatibility)
+        showSlotSelectionModal(dataUrl);
+      }
     } catch (error) {
       console.error('Error processing file:', error);
       alert('Error processing image: ' + error.message);
@@ -397,7 +402,7 @@ function updateGearDisplay(slot, gearData) {
     nameElement.textContent = 'No gear equipped';
     nameElement.setAttribute('data-grade', 'unscored');
     addButton.textContent = '+ Add Gear';
-    addButton.onclick = () => openFilePicker();
+    addButton.onclick = () => openFilePicker(slot);
   }
 }
 
@@ -842,7 +847,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (slotElement) {
       const addButton = slotElement.querySelector('.add-gear-btn');
       if (addButton) {
-        addButton.addEventListener('click', () => openFilePicker());
+        addButton.addEventListener('click', () => openFilePicker(slot));
       }
     }
   });

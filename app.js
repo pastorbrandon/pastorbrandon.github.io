@@ -417,16 +417,40 @@ function showGearModal(slot) {
   // Populate modal content
   detailsTitle.textContent = gearData.name;
   
-  const gearInfo = {
-    name: gearData.name,
-    slot: slot,
-    grade: gearData.grade || 'Unknown',
-    affixes: gearData.affixes || [],
-    aspect: gearData.aspect || 'None',
-    score: gearData.score || 'N/A'
-  };
+  // Create a more user-friendly display
+  const grade = gearData.grade || 'Unknown';
+  const affixes = gearData.affixes || [];
+  const aspect = gearData.aspect || 'None';
+  const score = gearData.score || 'N/A';
   
-  detailsBody.textContent = JSON.stringify(gearInfo, null, 2);
+  let detailsHTML = `
+    <div class="gear-details-content">
+      <div class="gear-grade ${grade.toLowerCase()}">
+        <strong>Grade:</strong> ${grade}
+      </div>
+      
+      <div class="gear-score">
+        <strong>Score:</strong> ${score}
+      </div>
+      
+      <div class="gear-slot">
+        <strong>Slot:</strong> ${slot.charAt(0).toUpperCase() + slot.slice(1)}
+      </div>
+      
+      <div class="gear-affixes">
+        <strong>Affixes:</strong>
+        <ul>
+          ${affixes.map(affix => `<li>${affix}</li>`).join('')}
+        </ul>
+      </div>
+      
+      <div class="gear-aspect">
+        <strong>Aspect:</strong> ${aspect}
+      </div>
+    </div>
+  `;
+  
+  detailsBody.innerHTML = detailsHTML;
 
   // Open the modal using the new system
   window.__hcOpenDetails?.();
@@ -840,17 +864,8 @@ document.addEventListener('DOMContentLoaded', () => {
     clearBuildBtn.addEventListener('click', clearBuild);
   }
   
-  // Set up gear slot click handlers
+  // Set up gear slot click handlers - these will be managed dynamically by updateGearDisplay
   const slots = ['helm', 'amulet', 'chest', 'gloves', 'pants', 'boots', 'ring1', 'ring2', 'weapon', 'offhand'];
-  slots.forEach(slot => {
-    const slotElement = document.querySelector(`[data-slot="${slot}"]`);
-    if (slotElement) {
-      const addButton = slotElement.querySelector('.add-gear-btn');
-      if (addButton) {
-        addButton.addEventListener('click', () => openFilePicker(slot));
-      }
-    }
-  });
   
   // Legacy modal close handlers (for backward compatibility with other modals)
   const closeButtons = document.querySelectorAll('.close-btn');

@@ -648,6 +648,63 @@ footer {
 .close { background: transparent; border: 0; font-size: 20px; float: right; cursor: pointer; }
 body.no-scroll { overflow: hidden; }
 
+/* Gear Details Modal Styles */
+.gear-details-content {
+  padding: 16px 0;
+}
+
+.gear-details-content > div {
+  margin-bottom: 16px;
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+}
+
+.gear-details-content .gear-grade {
+  font-weight: 600;
+  text-align: center;
+}
+
+.gear-details-content .gear-grade.blue {
+  color: var(--blue);
+  background: rgba(47, 111, 237, 0.1);
+  border-color: var(--blue);
+}
+
+.gear-details-content .gear-grade.green {
+  color: var(--green);
+  background: rgba(23, 164, 91, 0.1);
+  border-color: var(--green);
+}
+
+.gear-details-content .gear-grade.yellow {
+  color: var(--yellow);
+  background: rgba(202, 161, 0, 0.1);
+  border-color: var(--yellow);
+}
+
+.gear-details-content .gear-grade.red {
+  color: var(--red);
+  background: rgba(204, 58, 58, 0.1);
+  border-color: var(--red);
+}
+
+.gear-details-content .gear-affixes ul {
+  margin: 8px 0 0 0;
+  padding-left: 20px;
+}
+
+.gear-details-content .gear-affixes li {
+  margin-bottom: 4px;
+  font-size: 14px;
+}
+
+.gear-details-content strong {
+  color: var(--accent);
+  font-weight: 600;
+}
+
 /* Legacy modal styles for backward compatibility */
 .modal-content {
   background: var(--card);

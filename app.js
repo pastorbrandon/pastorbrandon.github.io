@@ -45,14 +45,20 @@ async function analyzeWithGPT(dataUrl, slot, rules) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        imageData: dataUrl,
+        image: dataUrl,
         slot: slot,
         rules: rules
       })
     });
 
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      const text = await response.text();
+      try {
+        const errorData = JSON.parse(text);
+        throw new Error(errorData.error || errorData.details || text);
+      } catch {
+        throw new Error(text || `HTTP error! status: ${response.status}`);
+      }
     }
 
     const result = await response.json();

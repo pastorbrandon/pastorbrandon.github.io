@@ -1,273 +1,151 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#ff7b00">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Horadric Companion</title>
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=22" />
 </head>
 <body>
-  <header>
+  <header class="topbar">
     <h1>Horadric Companion</h1>
-    <p>Hydra Sorcerer Companion (v2.0.14)</p>
+    <nav>
+      <button id="tab-gear" class="tab active">Gear</button>
+      <button id="tab-tools" class="tab">Tools</button>
+    </nav>
   </header>
 
-  <nav id="tabs">
-    <button data-tab="gear" class="active">Gear</button>
-    <button data-tab="affixes">Affixes</button>
-    <button data-tab="tempering">Tempering</button>
-    <button data-tab="masterworking">Masterworking</button>
-    <button data-tab="skills">Skills</button>
-    <button data-tab="paragon">Paragon</button>
-    <button data-tab="notes">Notes</button>
-  </nav>
-
   <main>
-    <section id="gear" class="tab active">
-      <div class="prominent-actions">
-        <button id="btn-check-gear" class="btn-check-gear">🔍 Compare New Gear</button>
-      </div>
-      
-      <div class="secondary-actions">
-        <button id="btn-clear-build">Clear Build</button>
-      </div>
-      
-      <!-- Gear Analysis Panel -->
-      <div id="gearAnalysisPanel" class="gear-analysis hidden">
-        <h3>🔍 Gear Analysis</h3>
-        <div class="gear-comparison">
-          <div class="current-gear">
-            <h4>Current Gear</h4>
-            <div id="currentGearInfo" class="gear-info">
-              <p class="gear-name">No gear equipped</p>
-              <p class="gear-status">Status: —</p>
-              <div class="gear-specs"></div>
-            </div>
-          </div>
-          
-          <div class="new-gear">
-            <h4>New Gear</h4>
-            <div id="newGearInfo" class="gear-info">
-              <p class="gear-name">Analyzing...</p>
-              <p class="gear-status">Status: —</p>
-              <div class="gear-specs"></div>
-            </div>
-          </div>
-        </div>
-        
-        <div class="gear-recommendation">
-          <h4>💡 Recommendation</h4>
-          <div id="recommendationReasons" class="recommendation-reasons">
-            <p id="recommendationText">Analyzing gear...</p>
-          </div>
-          <div class="recommendation-actions">
-            <button id="btn-switch" class="btn-primary">✅ Switch</button>
-            <button id="btn-discard" class="btn-danger">🗑️ Discard</button>
-          </div>
-        </div>
+    <section id="gearTab" class="tabpanel active">
+      <div class="actions">
+        <button id="btn-check-gear" class="primary">Check New Gear</button>
+        <button id="btn-backup" class="ghost">Backup Build</button>
+        <button id="btn-restore" class="ghost">Restore Build</button>
       </div>
 
-      <div class="paper-doll">
+      <div id="slots" class="grid">
+        <!-- Repeat for each slot -->
         <div class="slot" data-slot="helm">
           <h3>Helm</h3>
-          <div class="gear-name" data-grade="unscored">No gear equipped</div>
-          <button class="add-gear-btn">+ Add Gear</button>
+          <div class="gear-name">—</div>
+          <div class="status">—</div>
+          <div class="slot-actions">
+            <button class="add-gear">Add Gear</button>
+            <button class="details">Details</button>
+          </div>
         </div>
+
         <div class="slot" data-slot="amulet">
           <h3>Amulet</h3>
-          <div class="gear-name" data-grade="unscored">No gear equipped</div>
-          <button class="add-gear-btn">+ Add Gear</button>
+          <div class="gear-name">—</div>
+          <div class="status">—</div>
+          <div class="slot-actions">
+            <button class="add-gear">Add Gear</button>
+            <button class="details">Details</button>
+          </div>
         </div>
-        <div class="slot" data-slot="chest">
-          <h3>Chest</h3>
-          <div class="gear-name" data-grade="unscored">No gear equipped</div>
-          <button class="add-gear-btn">+ Add Gear</button>
-        </div>
-        <div class="slot" data-slot="gloves">
-          <h3>Gloves</h3>
-          <div class="gear-name" data-grade="unscored">No gear equipped</div>
-          <button class="add-gear-btn">+ Add Gear</button>
-        </div>
-        <div class="slot" data-slot="pants">
-          <h3>Pants</h3>
-          <div class="gear-name" data-grade="unscored">No gear equipped</div>
-          <button class="add-gear-btn">+ Add Gear</button>
-        </div>
-        <div class="slot" data-slot="boots">
-          <h3>Boots</h3>
-          <div class="gear-name" data-grade="unscored">No gear equipped</div>
-          <button class="add-gear-btn">+ Add Gear</button>
-        </div>
+
         <div class="slot" data-slot="ring1">
           <h3>Ring 1</h3>
-          <div class="gear-name" data-grade="unscored">No gear equipped</div>
-          <button class="add-gear-btn">+ Add Gear</button>
+          <div class="gear-name">—</div>
+          <div class="status">—</div>
+          <div class="slot-actions">
+            <button class="add-gear">Add Gear</button>
+            <button class="details">Details</button>
+          </div>
         </div>
+
         <div class="slot" data-slot="ring2">
           <h3>Ring 2</h3>
-          <div class="gear-name" data-grade="unscored">No gear equipped</div>
-          <button class="add-gear-btn">+ Add Gear</button>
+          <div class="gear-name">—</div>
+          <div class="status">—</div>
+          <div class="slot-actions">
+            <button class="add-gear">Add Gear</button>
+            <button class="details">Details</button>
+          </div>
         </div>
+
         <div class="slot" data-slot="weapon">
           <h3>Weapon</h3>
-          <div class="gear-name" data-grade="unscored">No gear equipped</div>
-          <button class="add-gear-btn">+ Add Gear</button>
+          <div class="gear-name">—</div>
+          <div class="status">—</div>
+          <div class="slot-actions">
+            <button class="add-gear">Add Gear</button>
+            <button class="details">Details</button>
+          </div>
         </div>
+
         <div class="slot" data-slot="offhand">
           <h3>Off-hand</h3>
-          <div class="gear-name" data-grade="unscored">No gear equipped</div>
-          <button class="add-gear-btn">+ Add Gear</button>
+          <div class="gear-name">—</div>
+          <div class="status">—</div>
+          <div class="slot-actions">
+            <button class="add-gear">Add Gear</button>
+            <button class="details">Details</button>
+          </div>
         </div>
-      </div>
-      
-      <!-- Gear Details Modal -->
-      <div id="detailsModal" class="modal hidden" aria-hidden="true">
-        <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="detailsTitle">
-          <button id="detailsClose" class="close" aria-label="Close">×</button>
-          <h3 id="detailsTitle">Item</h3>
-          <pre id="detailsBody"></pre>
+
+        <div class="slot" data-slot="chest">
+          <h3>Chest</h3>
+          <div class="gear-name">—</div>
+          <div class="status">—</div>
+          <div class="slot-actions">
+            <button class="add-gear">Add Gear</button>
+            <button class="details">Details</button>
+          </div>
         </div>
-      </div>
-      
-      <p class="hint">Click a gear name to view details. Status colors: <span class="chip blue">Blue</span> BiS, <span class="chip green">Green</span> Keep & improve, <span class="chip yellow">Yellow</span> Viable, <span class="chip red">Red</span> Replace.</p>
-    </section>
 
-    <section id="affixes" class="tab">
-      <h2>Affix Priorities</h2>
-      
-      <!-- Gear Selection Interface -->
-      <div class="gear-selector">
-        <h3>Select Gear Type</h3>
-        <div class="gear-grid">
-          <button class="gear-option" data-slot="helm">
-            <div class="gear-icon">🪖</div>
-            <span>Helm</span>
-          </button>
-          <button class="gear-option" data-slot="amulet">
-            <div class="gear-icon">📿</div>
-            <span>Amulet</span>
-          </button>
-          <button class="gear-option" data-slot="chest">
-            <div class="gear-icon">👕</div>
-            <span>Chest</span>
-          </button>
-          <button class="gear-option" data-slot="gloves">
-            <div class="gear-icon">🧤</div>
-            <span>Gloves</span>
-          </button>
-          <button class="gear-option" data-slot="pants">
-            <div class="gear-icon">👖</div>
-            <span>Pants</span>
-          </button>
-          <button class="gear-option" data-slot="boots">
-            <div class="gear-icon">👢</div>
-            <span>Boots</span>
-          </button>
-          <button class="gear-option" data-slot="ring">
-            <div class="gear-icon">💍</div>
-            <span>Ring</span>
-          </button>
-          <button class="gear-option" data-slot="weapon">
-            <div class="gear-icon">⚔️</div>
-            <span>Weapon</span>
-          </button>
-          <button class="gear-option" data-slot="offhand">
-            <div class="gear-icon">🛡️</div>
-            <span>Off-hand</span>
-          </button>
+        <div class="slot" data-slot="gloves">
+          <h3>Gloves</h3>
+          <div class="gear-name">—</div>
+          <div class="status">—</div>
+          <div class="slot-actions">
+            <button class="add-gear">Add Gear</button>
+            <button class="details">Details</button>
+          </div>
         </div>
-      </div>
 
-      <!-- Affix Details Panel -->
-      <div id="affixDetails" class="affix-details hidden">
-        <div class="affix-header">
-          <h3 id="affixSlotTitle">Select a gear type above</h3>
-          <button id="closeAffixDetails" class="close-btn">×</button>
+        <div class="slot" data-slot="pants">
+          <h3>Pants</h3>
+          <div class="gear-name">—</div>
+          <div class="status">—</div>
+          <div class="slot-actions">
+            <button class="add-gear">Add Gear</button>
+            <button class="details">Details</button>
+          </div>
         </div>
-        
-        <div class="affix-content">
-          <!-- Best in Slot Items -->
-          <div class="affix-section">
-            <h4>🏆 Best in Slot</h4>
-            <div id="bisItems" class="bis-items"></div>
-          </div>
 
-          <!-- Mandatory Affixes -->
-          <div class="affix-section">
-            <h4>🔴 Mandatory Affixes</h4>
-            <div id="mandatoryAffixes" class="affix-list mandatory"></div>
-          </div>
-
-          <!-- Preferred Affixes -->
-          <div class="affix-section">
-            <h4>🟡 Preferred Affixes</h4>
-            <div id="preferredAffixes" class="affix-list preferred"></div>
-          </div>
-
-          <!-- Tempering Options -->
-          <div class="affix-section">
-            <h4>⚡ Tempering Options</h4>
-            <div id="temperingOptions" class="affix-list tempering"></div>
-          </div>
-
-          <!-- Aspects -->
-          <div class="affix-section">
-            <h4>✨ Recommended Aspects</h4>
-            <div id="recommendedAspects" class="aspect-list"></div>
-          </div>
-
-          <!-- Enchantment Targets -->
-          <div class="affix-section">
-            <h4>🔧 Enchantment Targets</h4>
-            <div id="enchantmentTargets" class="enchantment-list"></div>
-          </div>
-
-          <!-- Build Notes -->
-          <div class="affix-section">
-            <h4>📝 Build Notes</h4>
-            <div id="buildNotes" class="build-notes"></div>
+        <div class="slot" data-slot="boots">
+          <h3>Boots</h3>
+          <div class="gear-name">—</div>
+          <div class="status">—</div>
+          <div class="slot-actions">
+            <button class="add-gear">Add Gear</button>
+            <button class="details">Details</button>
           </div>
         </div>
       </div>
-
-      <!-- Fallback JSON display -->
-      <div id="affix-json-fallback" class="hidden">
-        <pre id="affix-json"></pre>
-      </div>
     </section>
 
-    <section id="tempering" class="tab">
-      <h2>Tempering</h2>
-      <pre id="tempering-json"></pre>
-    </section>
-
-    <section id="masterworking" class="tab">
-      <h2>Masterworking</h2>
-      <pre id="mw-json"></pre>
-    </section>
-
-    <section id="skills" class="tab">
-      <h2>Skill Tree (Summary)</h2>
-      <ul id="skills-list"></ul>
-    </section>
-
-    <section id="paragon" class="tab">
-      <h2>Paragon (Boards & Glyphs)</h2>
-      <ul id="paragon-list"></ul>
-    </section>
-
-    <section id="notes" class="tab">
-      <h2>Session Notes</h2>
-      <textarea id="notes-text" placeholder="Farm boots; target Evade CDR; reroll amulet..."></textarea>
+    <section id="toolsTab" class="tabpanel">
+      <p>Utilities coming soon.</p>
     </section>
   </main>
 
-  <footer>
-    <p>Updated: <span id="rules-date">—</span> | App Version: v2.0</p>
+  <footer class="footer">
+    <small>Horadric Companion • <span id="appVersion">v2</span></small>
   </footer>
 
-  <script src="app.js"></script>
+  <!-- Details Modal (starts hidden, bulletproof) -->
+  <div id="gearModal" class="modal hidden" aria-hidden="true">
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="detailsTitle">
+      <button id="closeModal" class="close" aria-label="Close">×</button>
+      <h3 id="detailsTitle">Item</h3>
+      <pre id="detailsBody"></pre>
+    </div>
+  </div>
+
+  <script src="app.js?v=22" defer></script>
 </body>
 </html>

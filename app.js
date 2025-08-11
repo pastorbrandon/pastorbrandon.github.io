@@ -1,898 +1,235 @@
-// Global variables
-let build = {};
-let currentAnalysis = null;
+// ---------- Tabs ----------
+const gearTabBtn  = document.getElementById('tab-gear');
+const toolsTabBtn = document.getElementById('tab-tools');
+const gearTab  = document.getElementById('gearTab');
+const toolsTab = document.getElementById('toolsTab');
+gearTabBtn?.addEventListener('click', () => { gearTab.classList.add('active'); toolsTab.classList.remove('active'); gearTabBtn.classList.add('active'); toolsTabBtn.classList.remove('active'); });
+toolsTabBtn?.addEventListener('click', () => { toolsTab.classList.add('active'); gearTab.classList.remove('active'); toolsTabBtn.classList.add('active'); gearTabBtn.classList.remove('active'); });
 
-// Utility function to convert file to data URL
+// ---------- Constants ----------
+const APP_VERSION = 'v2';
+const SLOTS = ['helm','amulet','ring1','ring2','weapon','offhand','chest','gloves','pants','boots'];
+
+// Point to Netlify function in prod; fallback absolute URL if hosted elsewhere.
+const FN_URL = location.hostname.endsWith('netlify.app')
+  ? '/.netlify/functions/analyze-gear'
+  : 'https://d4companion.netlify.app/.netlify/functions/analyze-gear';
+
+// ---------- Storage (text-only) ----------
+const STORAGE_KEY = 'hc-build-v2';
+function saveBuild(b){ localStorage.setItem(STORAGE_KEY, JSON.stringify(b)); }
+function loadBuild(){ try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch { return {}; } }
+let build = loadBuild();
+
+// ---------- Rules loader ----------
+let RULES = null;
+async function ensureRules(){
+  if (RULES) return RULES;
+  try { const r = await fetch('rulepack.json'); RULES = await r.json(); }
+  catch { RULES = { slots:{} }; }
+  return RULES;
+}
+
+// ---------- UI helpers ----------
+function setSlotStatus(slot, text){
+  document.querySelector(`.slot[data-slot="${slot}"] .status`)?.replaceChildren(text);
+}
+function renderSlot(slot){
+  const d = build[slot];
+  const el = document.querySelector(`.slot[data-slot="${slot}"]`);
+  if (!el) return;
+  const nameEl = el.querySelector('.gear-name');
+  const statusEl = el.querySelector('.status');
+  if (!d) {
+    nameEl.textContent = '—'; nameEl.className = 'gear-name';
+    statusEl.textContent = '—'; statusEl.className = 'status';
+    return;
+  }
+  nameEl.textContent = d.name || '(unnamed)';
+  nameEl.className = 'gear-name ' + (d.status ? d.status.toLowerCase() : '');
+  statusEl.textContent = d.status || 'Unscored';
+}
+function renderAll(){ SLOTS.forEach(renderSlot); }
+document.getElementById('appVersion')?.replaceChildren(APP_VERSION);
+
+// ---------- Modal safety (never sticky) ----------
+function closeGearModal(){ document.getElementById('gearModal')?.classList.add('hidden'); }
+(function initModalSafety(){
+  closeGearModal();
+  document.getElementById('closeModal')?.addEventListener('click', closeGearModal);
+  document.getElementById('gearModal')?.addEventListener('click', (e)=>{ if (e.target === e.currentTarget) closeGearModal(); });
+  window.addEventListener('keydown', (e)=>{ if (e.key === 'Escape') closeGearModal(); });
+})();
+
+// ---------- Image helpers ----------
+async function pickImageFile(capture=true){
+  return new Promise(res => {
+    const input = document.createElement('input');
+    input.type = 'file'; input.accept = 'image/*';
+    if (capture) input.capture = 'environment';
+    input.onchange = () => res(input.files?.[0] || null);
+    input.click();
+  });
+}
 async function fileToDataUrl(file, max=1280, q=0.85){
-  return new Promise((resolve) => {
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    const img = new Image();
-    img.onload = () => {
-      const scale = Math.min(max/img.width, max/img.height, 1);
-      canvas.width = img.width * scale;
-      canvas.height = img.height * scale;
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      resolve(canvas.toDataURL('image/jpeg', q));
+  const raw = await new Promise(r => { const fr=new FileReader(); fr.onload=()=>r(fr.result); fr.readAsDataURL(file); });
+  return new Promise(res=>{
+    const img=new Image();
+    img.onload=()=>{
+      let w=img.width, h=img.height;
+      if (w>h && w>max){ h=Math.round(h*(max/w)); w=max; }
+      else if (h>=w && h>max){ w=Math.round(w*(max/h)); h=max; }
+      const c=document.createElement('canvas'); c.width=w; c.height=h;
+      c.getContext('2d').drawImage(img,0,0,w,h);
+      res(c.toDataURL('image/jpeg', q));
     };
-    img.src = URL.createObjectURL(file);
+    img.src = raw;
   });
 }
 
-// Utility function to resize data URL
-function resizeDataUrl(dataUrl, max=1280, q=0.85){
-  return new Promise((resolve) => {
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    const img = new Image();
-    img.onload = () => {
-      const scale = Math.min(max/img.width, max/img.height, 1);
-      canvas.width = img.width * scale;
-      canvas.height = img.height * scale;
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      resolve(canvas.toDataURL('image/jpeg', q));
-    };
-    img.src = dataUrl;
+// ---------- Function call ----------
+async function analyzeWithGPT(dataUrl, slotHint, rules){
+  const res = await fetch(FN_URL, {
+    method: 'POST',
+    headers: { 'Content-Type':'application/json' },
+    body: JSON.stringify({ image: dataUrl, slot: slotHint, rules })
   });
+  const text = await res.text();
+  if (!res.ok){
+    try { const j = JSON.parse(text); throw new Error(j.error || text); }
+    catch { throw new Error(text || `HTTP ${res.status}`); }
+  }
+  try { return JSON.parse(text); }
+  catch { throw new Error('Bad JSON from function: ' + text.slice(0,200)); }
 }
 
-// Function to analyze gear with GPT
-async function analyzeWithGPT(dataUrl, slot, rules) {
+// ---------- Compare helper ----------
+const STATUS_RANK = { Blue:3, Green:2, Yellow:1, Red:0 };
+function compareItems(newItem, currentItem){
+  if (!currentItem) return { decision:'equip', reason:'No item equipped' };
+  const a = STATUS_RANK[newItem.status] ?? -1;
+  const b = STATUS_RANK[currentItem.status] ?? -1;
+  if (a > b) return { decision:'equip', reason:`${newItem.status} > ${currentItem.status}` };
+  if (a < b) return { decision:'salvage', reason:`${newItem.status} < ${currentItem.status}` };
+  const ns = Number(newItem.score ?? 0), cs = Number(currentItem.score ?? 0);
+  if (ns > cs + 2) return { decision:'equip', reason:`score ${ns} > ${cs}` };
+  if (ns < cs - 2) return { decision:'salvage', reason:`score ${ns} < ${cs}` };
+  return { decision:'keep', reason:'similar quality' };
+}
+
+// ---------- Flows ----------
+async function equipFlow(slot){
+  const file = await pickImageFile(true);
+  if (!file) return;
   try {
-    const response = await fetch('/.netlify/functions/analyze-gear', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        image: dataUrl,
-        slot: slot,
-        rules: rules
-      })
-    });
-
-    if (!response.ok) {
-      const text = await response.text();
-      try {
-        const errorData = JSON.parse(text);
-        throw new Error(errorData.error || errorData.details || text);
-      } catch {
-        throw new Error(text || `HTTP error! status: ${response.status}`);
-      }
-    }
-
-    const result = await response.json();
-    return result;
-  } catch (error) {
-    console.error('Error analyzing gear:', error);
-    throw error;
-  }
-}
-
-// Function to validate analysis result
-function validateAnalysisResult(result) {
-  if (!result || typeof result !== 'object') {
-    return false;
-  }
-
-  const requiredFields = ['name', 'slot', 'affixes', 'aspect'];
-  for (const field of requiredFields) {
-    if (!(field in result)) {
-      console.error(`Missing required field: ${field}`);
-      return false;
-    }
-  }
-
-  if (!Array.isArray(result.affixes)) {
-    console.error('Affixes must be an array');
-    return false;
-  }
-
-  return true;
-}
-
-// Load build from localStorage
-function loadBuild() { 
-  const saved = localStorage.getItem('hydraSorcererBuild');
-  if (saved) {
-    try {
-      build = JSON.parse(saved);
-      console.log('Loaded build data:', build);
-    } catch (e) {
-      console.error('Error loading build:', e);
-      build = {};
-    }
-  }
-}
-
-// Save build to localStorage
-function saveBuild(build) { 
-  try {
-    localStorage.setItem('hydraSorcererBuild', JSON.stringify(build));
-    console.log('Build saved successfully');
+    await ensureRules();
+    setSlotStatus(slot, 'Analyzing…');
+    const dataUrl = await fileToDataUrl(file, 1280, 0.85);
+    const report = await analyzeWithGPT(dataUrl, slot, RULES);
+    build[slot] = {
+      name: report.name || 'Unknown Item',
+      slot,
+      rarity: report.rarity || '',
+      type: report.type || '',
+      aspect: report.aspect || null,
+      affixes: report.affixes || [],
+      aspects: report.aspects || [],
+      status: report.status || 'Yellow',
+      score: report.score ?? null,
+      reasons: report.reasons || [],
+      improvements: report.improvements || [],
+      lastSeen: Date.now()
+    };
+    saveBuild(build); renderSlot(slot);
+    setSlotStatus(slot, report.status || 'Equipped');
   } catch (e) {
-    console.error('Error saving build:', e);
+    setSlotStatus(slot, 'Error'); alert('Error equipping gear: ' + (e.message || e));
   }
 }
 
-// Function to open file picker for analysis
-function openFilePickerForAnalysis() {
-  const input = document.createElement('input');
-  input.type = 'file';
-  input.accept = 'image/*';
-  input.onchange = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    try {
-      // Show loading state
-      const gearAnalysisPanel = document.getElementById('gearAnalysisPanel');
-      gearAnalysisPanel.classList.remove('hidden');
-      
-      // Update loading text
-      const recommendationText = document.getElementById('recommendationText');
-      recommendationText.textContent = 'Analyzing gear...';
-
-      // Convert file to data URL
-      const dataUrl = await fileToDataUrl(file);
-
-      // Load rules from rulepack.json
-      const rulesResponse = await fetch('rulepack.json');
-      const rulesData = await rulesResponse.json();
-      const rules = rulesData.buildRules;
-
-      // Analyze the gear
-      const result = await analyzeWithGPT(dataUrl, 'auto', rules);
-
-      if (!validateAnalysisResult(result)) {
-        throw new Error('Invalid analysis result received');
-      }
-
-      // Update current analysis
-      currentAnalysis = {
-        slot: result.slot,
-        gearData: result,
-        imageData: dataUrl
+async function checkNewGear(){
+  const file = await pickImageFile(true);
+  if (!file) return;
+  try {
+    await ensureRules();
+    const dataUrl = await fileToDataUrl(file, 1280, 0.85);
+    const report = await analyzeWithGPT(dataUrl, 'auto', RULES);
+    let slot = (report.slot || '').toLowerCase();
+    if (!SLOTS.includes(slot)) slot = prompt('Which slot is this item for?', 'helm')?.toLowerCase() || 'helm';
+    const current = build[slot];
+    const cmp = compareItems(report, current);
+    const msg =
+      `${report.name} → ${slot}\n` +
+      `Grade: ${report.status}${report.score!=null?` (${report.score}/100)`:''}\n` +
+      `Suggested: ${cmp.decision.toUpperCase()} (${cmp.reason})\n\n` +
+      (report.improvements?.length ? `Improvements:\n- ${report.improvements.join('\n- ')}\n\n` : '') +
+      `Equip now?`;
+    if (cmp.decision === 'equip' && confirm(msg)) {
+      build[slot] = {
+        name: report.name, slot,
+        rarity: report.rarity, type: report.type,
+        aspect: report.aspect || null,
+        affixes: report.affixes || [],
+        aspects: report.aspects || [],
+        status: report.status, score: report.score ?? null,
+        reasons: report.reasons || [], improvements: report.improvements || [],
+        lastSeen: Date.now()
       };
-
-      // Show results
-      showAnalysisResults(result);
-
-    } catch (error) {
-      console.error('Error during analysis:', error);
-      alert('Error analyzing gear: ' + error.message);
-      // Hide analysis panel on error
-      document.getElementById('gearAnalysisPanel').classList.add('hidden');
+      saveBuild(build); renderSlot(slot);
+      alert(`${report.name} equipped to ${slot}.`);
+    } else if (cmp.decision === 'keep') {
+      alert('Keep for now (not auto-equipped).');
+    } else {
+      alert('Worse than current—consider salvaging.');
     }
-  };
-  input.click();
-}
-
-// Function to open file picker for manual gear entry
-function openFilePicker(slot = null) {
-  const input = document.createElement('input');
-  input.type = 'file';
-  input.accept = 'image/*';
-  input.onchange = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    try {
-      const dataUrl = await fileToDataUrl(file);
-      
-      if (slot) {
-        // Direct upload to specific slot
-        addGearManually(slot, dataUrl);
-      } else {
-        // Show slot selection modal (for backward compatibility)
-        showSlotSelectionModal(dataUrl);
-      }
-    } catch (error) {
-      console.error('Error processing file:', error);
-      alert('Error processing image: ' + error.message);
-    }
-  };
-  input.click();
-}
-
-// Function to show slot selection modal
-function showSlotSelectionModal(imageData) {
-  // Create modal if it doesn't exist
-  let modal = document.getElementById('slotModal');
-  if (!modal) {
-    modal = document.createElement('div');
-    modal.id = 'slotModal';
-    modal.className = 'modal hidden';
-    modal.innerHTML = `
-      <div class="modal-content">
-        <div class="modal-header">
-          <h3>Select Gear Slot to Replace</h3>
-          <button class="close-btn" onclick="closeSlotModal()">×</button>
-        </div>
-        <div class="modal-body">
-          <p class="modal-description">This will analyze and directly replace the gear in the selected slot.</p>
-          <div id="slotOptions" class="slot-options"></div>
-        </div>
-      </div>
-    `;
-    document.body.appendChild(modal);
+  } catch (e) {
+    alert('Error analyzing gear: ' + (e.message || e));
   }
+}
 
-  const slots = ['helm', 'amulet', 'chest', 'gloves', 'pants', 'boots', 'ring1', 'ring2', 'weapon', 'offhand'];
-  
-  const container = document.getElementById('slotOptions');
-  container.innerHTML = '';
-  
-  slots.forEach(slot => {
-    const button = document.createElement('button');
-    button.textContent = slot.charAt(0).toUpperCase() + slot.slice(1);
-    button.className = 'slot-option-btn';
-    button.onclick = () => {
-      addGearManually(slot, imageData);
-      closeSlotModal();
-    };
-    container.appendChild(button);
+// ---------- Wire buttons ----------
+document.getElementById('btn-check-gear')?.addEventListener('click', checkNewGear);
+SLOTS.forEach(slot => {
+  const el = document.querySelector(`.slot[data-slot="${slot}"]`);
+  el?.querySelector('.add-gear')?.addEventListener('click', () => equipFlow(slot));
+  el?.querySelector('.details')?.addEventListener('click', () => {
+    const d = build[slot];
+    if (!d) return alert('No item in this slot yet.');
+    const body =
+      `Rarity: ${d.rarity || '—'}\nType: ${d.type || '—'}\nStatus: ${d.status || 'Unscored'}\n` +
+      (d.aspect ? `\nAspect: ${d.aspect.name || '—'}\n${d.aspect.text || ''}\n` : '') +
+      (Array.isArray(d.affixes) && d.affixes.length ? `\nAffixes:\n- ${d.affixes.map(a => `${a.stat}: ${a.val ?? ''}${a.unit ?? ''}`).join('\n- ')}` : '') +
+      (Array.isArray(d.improvements) && d.improvements.length ? `\n\nHow to reach Blue:\n- ${d.improvements.join('\n- ')}` : '') +
+      (Array.isArray(d.reasons) && d.reasons.length ? `\n\nWhy graded:\n- ${d.reasons.join('\n- ')}` : '');
+    document.getElementById('detailsTitle').textContent = d.name || slot;
+    document.getElementById('detailsBody').textContent = body;
+    document.getElementById('gearModal')?.classList.remove('hidden');
   });
-  
-  modal.classList.remove('hidden');
-}
-
-// Function to close slot modal
-function closeSlotModal() {
-  const modal = document.getElementById('slotModal');
-  if (modal) {
-    modal.classList.add('hidden');
-  }
-}
-
-// Function to add gear manually
-async function addGearManually(slot, imageData) {
-  try {
-    // Show loading state on the slot
-    const slotElement = document.querySelector(`[data-slot="${slot}"]`);
-    if (slotElement) {
-      const nameElement = slotElement.querySelector('.gear-name');
-      const addButton = slotElement.querySelector('.add-gear-btn');
-      nameElement.textContent = 'Analyzing...';
-      addButton.textContent = 'Processing...';
-      addButton.disabled = true;
-    }
-
-    // Load rules from rulepack.json
-    const rulesResponse = await fetch('rulepack.json');
-    const rulesData = await rulesResponse.json();
-    const rules = rulesData.buildRules;
-
-    // Analyze the gear
-    const result = await analyzeWithGPT(imageData, slot, rules);
-
-    if (!validateAnalysisResult(result)) {
-      throw new Error('Invalid analysis result received');
-    }
-
-    // Apply the analyzed gear directly to the slot
-    applyReportToSlot(slot, result);
-
-  } catch (error) {
-    console.error('Error analyzing gear:', error);
-    alert('Error analyzing gear: ' + error.message);
-    
-    // Reset the slot display on error
-    const slotElement = document.querySelector(`[data-slot="${slot}"]`);
-    if (slotElement) {
-      const nameElement = slotElement.querySelector('.gear-name');
-      const addButton = slotElement.querySelector('.add-gear-btn');
-      nameElement.textContent = 'No gear equipped';
-      addButton.textContent = '+ Add Gear';
-      addButton.disabled = false;
-    }
-  }
-}
-
-// Function to apply analysis report to a slot
-function applyReportToSlot(slot, report) {
-  // Create gear data object
-  const gearData = {
-    name: report.name || 'Unknown Item',
-    slot: slot,
-    affixes: report.affixes || [],
-    aspect: report.aspect || 'None',
-    grade: report.grade || 'Unknown',
-    imageData: report.imageData || null,
-    analysis: report.analysis || null,
-    recommendations: report.recommendations || []
-  };
-
-  // Score the gear
-  const score = scoreGear(slot, gearData);
-  gearData.score = score;
-  gearData.grade = getGradeFromScore(score);
-
-  // Add to build
-  build[slot] = gearData;
-  
-  // Save build
-  saveBuild(build);
-  
-  // Update display
-  updateGearDisplay(slot, gearData);
-  
-  // Close modal if open
-  window.__hcCloseDetails?.();
-  
-  // Hide gear analysis panel
-  const gearAnalysisPanel = document.getElementById('gearAnalysisPanel');
-  if (gearAnalysisPanel) {
-    gearAnalysisPanel.classList.add('hidden');
-  }
-  
-  console.log(`Applied gear to ${slot}:`, gearData);
-}
-
-// Function to score gear based on build rules
-function scoreGear(slot, gearData) {
-  // Load rules from rulepack.json
-  fetch('rulepack.json')
-    .then(response => response.json())
-    .then(data => {
-      const rules = data.buildRules;
-      const slotRules = rules[slot] || {};
-      
-      let score = 0;
-      const maxScore = 100;
-      
-      // Score affixes
-      if (gearData.affixes && Array.isArray(gearData.affixes)) {
-        gearData.affixes.forEach(affix => {
-          if (slotRules.bestAffixes && slotRules.bestAffixes.includes(affix)) {
-            score += 25;
-          } else if (slotRules.goodAffixes && slotRules.goodAffixes.includes(affix)) {
-            score += 15;
-          } else if (slotRules.acceptableAffixes && slotRules.acceptableAffixes.includes(affix)) {
-            score += 5;
-          }
-        });
-      }
-      
-      // Score aspect
-      if (gearData.aspect && slotRules.bestAspects && slotRules.bestAspects.includes(gearData.aspect)) {
-        score += 20;
-      } else if (gearData.aspect && slotRules.goodAspects && slotRules.goodAspects.includes(gearData.aspect)) {
-        score += 10;
-      }
-      
-      // Cap score at max
-      score = Math.min(score, maxScore);
-      
-      // Update gear data with score
-      gearData.score = score;
-      gearData.grade = getGradeFromScore(score);
-      
-      // Update display
-      updateGearDisplay(slot, gearData);
-    })
-    .catch(error => {
-      console.error('Error scoring gear:', error);
-    });
-}
-
-// Function to get grade from score
-function getGradeFromScore(score) {
-  if (score >= 80) return 'A';
-  if (score >= 60) return 'B';
-  if (score >= 40) return 'C';
-  if (score >= 20) return 'D';
-  return 'F';
-}
-
-// Function to update gear display
-function updateGearDisplay(slot, gearData) {
-  const slotElement = document.querySelector(`[data-slot="${slot}"]`);
-  if (!slotElement) return;
-
-  const nameElement = slotElement.querySelector('.gear-name');
-  const addButton = slotElement.querySelector('.add-gear-btn');
-
-  if (gearData.name && gearData.name !== 'No gear equipped') {
-    nameElement.textContent = gearData.name;
-    nameElement.setAttribute('data-grade', gearData.grade ? gearData.grade.toLowerCase() : 'unscored');
-    addButton.textContent = 'View Details';
-    addButton.onclick = () => showGearModal(slot);
-  } else {
-    nameElement.textContent = 'No gear equipped';
-    nameElement.setAttribute('data-grade', 'unscored');
-    addButton.textContent = '+ Add Gear';
-    addButton.onclick = () => openFilePicker(slot);
-  }
-}
-
-// Function to show gear modal
-function showGearModal(slot) {
-  const gearData = build[slot];
-  if (!gearData) return;
-
-  const detailsTitle = document.getElementById('detailsTitle');
-  const detailsBody = document.getElementById('detailsBody');
-
-  // Populate modal content
-  detailsTitle.textContent = gearData.name;
-  
-  // Create a more user-friendly display
-  const grade = gearData.grade || 'Unknown';
-  const affixes = gearData.affixes || [];
-  const aspect = gearData.aspect || 'None';
-  const score = gearData.score || 'N/A';
-  
-  let detailsHTML = `
-    <div class="gear-details-content">
-      <div class="gear-grade ${grade.toLowerCase()}">
-        <strong>Grade:</strong> ${grade}
-      </div>
-      
-      <div class="gear-score">
-        <strong>Score:</strong> ${score}
-      </div>
-      
-      <div class="gear-slot">
-        <strong>Slot:</strong> ${slot.charAt(0).toUpperCase() + slot.slice(1)}
-      </div>
-      
-      <div class="gear-affixes">
-        <strong>Affixes:</strong>
-        <ul>
-          ${affixes.map(affix => `<li>${affix}</li>`).join('')}
-        </ul>
-      </div>
-      
-      <div class="gear-aspect">
-        <strong>Aspect:</strong> ${aspect}
-      </div>
-    </div>
-  `;
-  
-  detailsBody.innerHTML = detailsHTML;
-
-  // Open the modal using the new system
-  window.__hcOpenDetails?.();
-}
-
-// Function to close gear modal
-function closeGearModal() {
-  window.__hcCloseDetails?.();
-}
-
-// Function to show analysis results
-function showAnalysisResults(result) {
-  const gearAnalysisPanel = document.getElementById('gearAnalysisPanel');
-  const currentGearInfo = document.getElementById('currentGearInfo');
-  const newGearInfo = document.getElementById('newGearInfo');
-  const recommendationText = document.getElementById('recommendationText');
-  const btnSwitch = document.getElementById('btn-switch');
-  const btnDiscard = document.getElementById('btn-discard');
-
-  // Show current gear info
-  const currentGear = build[result.slot];
-  if (currentGear) {
-    currentGearInfo.innerHTML = `
-      <p class="gear-name">${currentGear.name}</p>
-      <p class="gear-status">Status: ${currentGear.grade || 'Unknown'}</p>
-      <div class="gear-specs">
-        <p>Affixes: ${currentGear.affixes.join(', ')}</p>
-        <p>Aspect: ${currentGear.aspect}</p>
-      </div>
-    `;
-  } else {
-    currentGearInfo.innerHTML = `
-      <p class="gear-name">No gear equipped</p>
-      <p class="gear-status">Status: —</p>
-      <div class="gear-specs"></div>
-    `;
-  }
-
-  // Show new gear info
-  newGearInfo.innerHTML = `
-    <p class="gear-name">${result.name}</p>
-    <p class="gear-status">Status: Analyzing...</p>
-    <div class="gear-specs">
-      <p>Affixes: ${result.affixes.join(', ')}</p>
-      <p>Aspect: ${result.aspect}</p>
-    </div>
-  `;
-
-  // Set up action buttons
-  btnSwitch.onclick = () => {
-    applyReportToSlot(result.slot, result);
-  };
-  
-  btnDiscard.onclick = () => {
-    gearAnalysisPanel.classList.add('hidden');
-  };
-
-  // Show recommendation
-  recommendationText.textContent = `New ${result.slot} detected: ${result.name}. Click "Switch" to apply or "Discard" to ignore.`;
-
-  gearAnalysisPanel.classList.remove('hidden');
-}
-
-// Function to clear build
-function clearBuild() {
-  if (confirm('Are you sure you want to clear all gear data?')) {
-    build = {};
-    saveBuild(build);
-    
-    // Reset all gear displays
-    const slots = ['helm', 'amulet', 'chest', 'gloves', 'pants', 'boots', 'ring1', 'ring2', 'weapon', 'offhand'];
-    slots.forEach(slot => {
-      updateGearDisplay(slot, { name: 'No gear equipped' });
-    });
-    
-    // Hide gear analysis panel
-    const gearAnalysisPanel = document.getElementById('gearAnalysisPanel');
-    if (gearAnalysisPanel) {
-      gearAnalysisPanel.classList.add('hidden');
-    }
-    
-    console.log('Build cleared');
-  }
-}
-
-// Function to load and display affix information
-async function loadAffixData() {
-  try {
-    const response = await fetch('rulepack.json');
-    const data = await response.json();
-    return data.buildRules;
-  } catch (error) {
-    console.error('Error loading affix data:', error);
-    return {};
-  }
-}
-
-// Function to show affix details for a specific slot
-async function showAffixDetails(slot) {
-  const affixDetails = document.getElementById('affixDetails');
-  const affixSlotTitle = document.getElementById('affixSlotTitle');
-  const mandatoryAffixes = document.getElementById('mandatoryAffixes');
-  const preferredAffixes = document.getElementById('preferredAffixes');
-  const temperingOptions = document.getElementById('temperingOptions');
-  const recommendedAspects = document.getElementById('recommendedAspects');
-  const enchantmentTargets = document.getElementById('enchantmentTargets');
-  const buildNotes = document.getElementById('buildNotes');
-  
-  // Load affix data
-  const affixData = await loadAffixData();
-  const slotData = affixData[slot] || {};
-  
-  // Update title
-  affixSlotTitle.textContent = slot.charAt(0).toUpperCase() + slot.slice(1);
-  
-  // Populate mandatory affixes
-  mandatoryAffixes.innerHTML = '';
-  if (slotData.mandatoryAffixes && slotData.mandatoryAffixes.length > 0) {
-    slotData.mandatoryAffixes.forEach(affix => {
-      const affixItem = document.createElement('div');
-      affixItem.className = 'affix-item';
-      affixItem.innerHTML = `
-        <span class="affix-name">${affix}</span>
-        <span class="affix-priority">Required</span>
-      `;
-      mandatoryAffixes.appendChild(affixItem);
-    });
-  } else {
-    mandatoryAffixes.innerHTML = '<p>No mandatory affixes defined</p>';
-  }
-  
-  // Populate preferred affixes
-  preferredAffixes.innerHTML = '';
-  if (slotData.preferredAffixes && slotData.preferredAffixes.length > 0) {
-    slotData.preferredAffixes.forEach(affix => {
-      const affixItem = document.createElement('div');
-      affixItem.className = 'affix-item';
-      affixItem.innerHTML = `
-        <span class="affix-name">${affix}</span>
-        <span class="affix-priority">Preferred</span>
-      `;
-      preferredAffixes.appendChild(affixItem);
-    });
-  } else {
-    preferredAffixes.innerHTML = '<p>No preferred affixes defined</p>';
-  }
-  
-  // Populate tempering options
-  temperingOptions.innerHTML = '';
-  if (slotData.temperingOptions && slotData.temperingOptions.length > 0) {
-    slotData.temperingOptions.forEach(option => {
-      const affixItem = document.createElement('div');
-      affixItem.className = 'affix-item';
-      affixItem.innerHTML = `
-        <span class="affix-name">${option}</span>
-        <span class="affix-priority">Tempering</span>
-      `;
-      temperingOptions.appendChild(affixItem);
-    });
-  } else {
-    temperingOptions.innerHTML = '<p>No tempering options defined</p>';
-  }
-  
-  // Populate recommended aspects
-  recommendedAspects.innerHTML = '';
-  if (slotData.bestAspects && slotData.bestAspects.length > 0) {
-    slotData.bestAspects.forEach(aspect => {
-      const aspectItem = document.createElement('div');
-      aspectItem.className = 'aspect-item';
-      aspectItem.innerHTML = `
-        <div class="aspect-name">${aspect}</div>
-        <div class="aspect-desc">Best in slot aspect</div>
-      `;
-      recommendedAspects.appendChild(aspectItem);
-    });
-  } else {
-    recommendedAspects.innerHTML = '<p>No recommended aspects defined</p>';
-  }
-  
-  // Populate enchantment targets
-  enchantmentTargets.innerHTML = '';
-  if (slotData.enchantmentTargets && slotData.enchantmentTargets.length > 0) {
-    slotData.enchantmentTargets.forEach(target => {
-      const enchantmentItem = document.createElement('div');
-      enchantmentItem.className = 'enchantment-item';
-      enchantmentItem.innerHTML = `
-        <span class="enchantment-icon">🔧</span>
-        <span class="enchantment-text">${target}</span>
-      `;
-      enchantmentTargets.appendChild(enchantmentItem);
-    });
-  } else {
-    enchantmentTargets.innerHTML = '<p>No enchantment targets defined</p>';
-  }
-  
-  // Populate build notes
-  buildNotes.innerHTML = '';
-  if (slotData.notes && slotData.notes.length > 0) {
-    slotData.notes.forEach(note => {
-      const noteItem = document.createElement('div');
-      noteItem.className = 'build-note';
-      noteItem.innerHTML = `
-        <div class="build-note-content">${note}</div>
-      `;
-      buildNotes.appendChild(noteItem);
-    });
-  } else {
-    buildNotes.innerHTML = '<p>No build notes available</p>';
-  }
-  
-  // Show the affix details panel
-  affixDetails.classList.remove('hidden');
-}
-
-// Function to load and display tempering data
-async function loadTemperingData() {
-  try {
-    const response = await fetch('rulepack.json');
-    const data = await response.json();
-    const temperingJson = document.getElementById('tempering-json');
-    if (temperingJson) {
-      temperingJson.textContent = JSON.stringify(data.tempering || {}, null, 2);
-    }
-  } catch (error) {
-    console.error('Error loading tempering data:', error);
-  }
-}
-
-// Function to load and display masterworking data
-async function loadMasterworkingData() {
-  try {
-    const response = await fetch('rulepack.json');
-    const data = await response.json();
-    const mwJson = document.getElementById('mw-json');
-    if (mwJson) {
-      mwJson.textContent = JSON.stringify(data.masterworking || {}, null, 2);
-    }
-  } catch (error) {
-    console.error('Error loading masterworking data:', error);
-  }
-}
-
-// Function to load and display skills data
-async function loadSkillsData() {
-  try {
-    const response = await fetch('rulepack.json');
-    const data = await response.json();
-    const skillsList = document.getElementById('skills-list');
-    if (skillsList && data.skills) {
-      skillsList.innerHTML = '';
-      data.skills.forEach(skill => {
-        const li = document.createElement('li');
-        li.textContent = skill;
-        skillsList.appendChild(li);
-      });
-    }
-  } catch (error) {
-    console.error('Error loading skills data:', error);
-  }
-}
-
-// Function to load and display paragon data
-async function loadParagonData() {
-  try {
-    const response = await fetch('rulepack.json');
-    const data = await response.json();
-    const paragonList = document.getElementById('paragon-list');
-    if (paragonList && data.paragon) {
-      paragonList.innerHTML = '';
-      data.paragon.forEach(item => {
-        const li = document.createElement('li');
-        li.textContent = item;
-        paragonList.appendChild(li);
-      });
-    }
-  } catch (error) {
-    console.error('Error loading paragon data:', error);
-  }
-}
-
-// Function to load and save notes
-function loadNotes() {
-  const notesText = document.getElementById('notes-text');
-  if (notesText) {
-    const savedNotes = localStorage.getItem('hydraSorcererNotes');
-    if (savedNotes) {
-      notesText.value = savedNotes;
-    }
-  }
-}
-
-function saveNotes() {
-  const notesText = document.getElementById('notes-text');
-  if (notesText) {
-    localStorage.setItem('hydraSorcererNotes', notesText.value);
-  }
-}
-
-// Initialize the application
-document.addEventListener('DOMContentLoaded', () => {
-  console.log('DOM loaded, initializing...');
-  
-  // Load build data
-  loadBuild();
-  
-  // Load notes
-  loadNotes();
-  
-  // ----- Gear Details modal wiring (robust) -----
-  (function initDetailsModal(){
-    const modal  = document.getElementById('detailsModal');
-    const closeB = document.getElementById('detailsClose');
-    const bodyEl = document.body;
-
-    if (!modal) return; // safe guard
-
-    function openDetails() {
-      modal.classList.remove('hidden');
-      bodyEl.classList.add('no-scroll');
-    }
-    function closeDetails() {
-      modal.classList.add('hidden');
-      bodyEl.classList.remove('no-scroll');
-    }
-
-    // expose for other code
-    window.__hcOpenDetails  = openDetails;
-    window.__hcCloseDetails = closeDetails;
-
-    // force closed on first load (even if HTML shipped visible)
-    closeDetails();
-
-    // close button
-    closeB?.addEventListener('click', closeDetails);
-
-    // click outside the card
-    modal.addEventListener('click', (e) => {
-      if (e.target === modal) closeDetails();
-    });
-
-    // Esc key
-    window.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') closeDetails();
-    });
-  })();
-  
-  // Set up tab functionality
-  const tabButtons = document.querySelectorAll('#tabs button');
-  const tabSections = document.querySelectorAll('.tab');
-  
-  tabButtons.forEach(button => {
-    button.addEventListener('click', () => {
-      const targetTab = button.getAttribute('data-tab');
-      
-      // Remove active class from all buttons and sections
-      tabButtons.forEach(btn => btn.classList.remove('active'));
-      tabSections.forEach(section => section.classList.remove('active'));
-      
-      // Add active class to clicked button and target section
-      button.classList.add('active');
-      const targetSection = document.getElementById(targetTab);
-      if (targetSection) {
-        targetSection.classList.add('active');
-        
-        // Load tab-specific data
-        if (targetTab === 'tempering') {
-          loadTemperingData();
-        } else if (targetTab === 'masterworking') {
-          loadMasterworkingData();
-        } else if (targetTab === 'skills') {
-          loadSkillsData();
-        } else if (targetTab === 'paragon') {
-          loadParagonData();
-        }
-      }
-    });
-  });
-  
-  // Set up notes auto-save
-  const notesText = document.getElementById('notes-text');
-  if (notesText) {
-    notesText.addEventListener('input', saveNotes);
-  }
-  
-  // Set up affix gear selector
-  const gearOptions = document.querySelectorAll('.gear-option');
-  gearOptions.forEach(option => {
-    option.addEventListener('click', () => {
-      const slot = option.getAttribute('data-slot');
-      showAffixDetails(slot);
-    });
-  });
-  
-  // Set up affix details close button
-  const closeAffixDetails = document.getElementById('closeAffixDetails');
-  if (closeAffixDetails) {
-    closeAffixDetails.addEventListener('click', () => {
-      const affixDetails = document.getElementById('affixDetails');
-      affixDetails.classList.add('hidden');
-    });
-  }
-  
-  // Set up event listeners
-  const checkGearBtn = document.getElementById('btn-check-gear');
-  if (checkGearBtn) {
-    checkGearBtn.addEventListener('click', openFilePickerForAnalysis);
-  }
-  
-  const clearBuildBtn = document.getElementById('btn-clear-build');
-  if (clearBuildBtn) {
-    clearBuildBtn.addEventListener('click', clearBuild);
-  }
-  
-  // Set up gear slot click handlers - these will be managed dynamically by updateGearDisplay
-  const slots = ['helm', 'amulet', 'chest', 'gloves', 'pants', 'boots', 'ring1', 'ring2', 'weapon', 'offhand'];
-  
-  // Legacy modal close handlers (for backward compatibility with other modals)
-  const closeButtons = document.querySelectorAll('.close-btn');
-  closeButtons.forEach(button => {
-    button.addEventListener('click', () => {
-      const modal = button.closest('.modal');
-      if (modal) {
-        modal.classList.add('hidden');
-      }
-    });
-  });
-  
-  // Close legacy modals when clicking outside
-  const legacyModals = document.querySelectorAll('.modal:not(#detailsModal)');
-  legacyModals.forEach(modal => {
-    modal.addEventListener('click', (e) => {
-      if (e.target === modal) {
-        modal.classList.add('hidden');
-      }
-    });
-  });
-  
-  // Initialize gear displays
-  slots.forEach(slot => {
-    const gearData = build[slot] || { name: 'No gear equipped' };
-    updateGearDisplay(slot, gearData);
-  });
-  
-  console.log('App initialized successfully');
 });
+
+// ---------- Backup / Restore ----------
+document.getElementById('btn-backup')?.addEventListener('click', () => {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(build||{}, null, 2)], {type:'application/json'}));
+  a.download = `horadric-build-${Date.now()}.json`; document.body.appendChild(a); a.click(); a.remove();
+});
+document.getElementById('btn-restore')?.addEventListener('click', () => {
+  const input = document.createElement('input'); input.type='file'; input.accept='application/json';
+  input.onchange = () => {
+    const f = input.files?.[0]; if (!f) return;
+    const fr = new FileReader();
+    fr.onload = () => { try { build = JSON.parse(fr.result); saveBuild(build); renderAll(); alert('Build restored.'); } catch { alert('Invalid file.'); } };
+    fr.readAsText(f);
+  };
+  input.click();
+});
+
+// ---------- Service worker (disable in dev; enable only on prod hosts) ----------
+if ('serviceWorker' in navigator && (location.hostname.endsWith('netlify.app') || location.hostname.endsWith('github.io'))) {
+  navigator.serviceWorker.register('/service-worker.js');
+  navigator.serviceWorker.addEventListener('controllerchange', () => location.reload());
+}
+
+// ---------- Boot ----------
+renderAll();
+ensureRules();

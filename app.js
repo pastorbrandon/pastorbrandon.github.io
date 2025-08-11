@@ -201,10 +201,11 @@ function showSlotSelectionModal(imageData) {
     modal.innerHTML = `
       <div class="modal-content">
         <div class="modal-header">
-          <h3>Select Gear Slot</h3>
+          <h3>Select Gear Slot to Replace</h3>
           <button class="close-btn" onclick="closeSlotModal()">×</button>
         </div>
         <div class="modal-body">
+          <p class="modal-description">This will analyze and directly replace the gear in the selected slot.</p>
           <div id="slotOptions" class="slot-options"></div>
         </div>
       </div>
@@ -240,17 +241,47 @@ function closeSlotModal() {
 }
 
 // Function to add gear manually
-function addGearManually(slot, imageData) {
-  const gearData = {
-    name: 'Manual Entry',
-    slot: slot,
-    imageData: imageData,
-    affixes: [],
-    aspect: 'None',
-    grade: 'Unknown'
-  };
-  
-  applyReportToSlot(slot, gearData);
+async function addGearManually(slot, imageData) {
+  try {
+    // Show loading state on the slot
+    const slotElement = document.querySelector(`[data-slot="${slot}"]`);
+    if (slotElement) {
+      const nameElement = slotElement.querySelector('.gear-name');
+      const addButton = slotElement.querySelector('.add-gear-btn');
+      nameElement.textContent = 'Analyzing...';
+      addButton.textContent = 'Processing...';
+      addButton.disabled = true;
+    }
+
+    // Load rules from rulepack.json
+    const rulesResponse = await fetch('rulepack.json');
+    const rulesData = await rulesResponse.json();
+    const rules = rulesData.buildRules;
+
+    // Analyze the gear
+    const result = await analyzeWithGPT(imageData, slot, rules);
+
+    if (!validateAnalysisResult(result)) {
+      throw new Error('Invalid analysis result received');
+    }
+
+    // Apply the analyzed gear directly to the slot
+    applyReportToSlot(slot, result);
+
+  } catch (error) {
+    console.error('Error analyzing gear:', error);
+    alert('Error analyzing gear: ' + error.message);
+    
+    // Reset the slot display on error
+    const slotElement = document.querySelector(`[data-slot="${slot}"]`);
+    if (slotElement) {
+      const nameElement = slotElement.querySelector('.gear-name');
+      const addButton = slotElement.querySelector('.add-gear-btn');
+      nameElement.textContent = 'No gear equipped';
+      addButton.textContent = '+ Add Gear';
+      addButton.disabled = false;
+    }
+  }
 }
 
 // Function to apply analysis report to a slot
@@ -366,7 +397,7 @@ function updateGearDisplay(slot, gearData) {
     nameElement.textContent = 'No gear equipped';
     nameElement.setAttribute('data-grade', 'unscored');
     addButton.textContent = '+ Add Gear';
-    addButton.onclick = () => openFilePickerForAnalysis();
+    addButton.onclick = () => openFilePicker();
   }
 }
 
@@ -811,7 +842,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (slotElement) {
       const addButton = slotElement.querySelector('.add-gear-btn');
       if (addButton) {
-        addButton.addEventListener('click', () => openFilePickerForAnalysis());
+        addButton.addEventListener('click', () => openFilePicker());
       }
     }
   });

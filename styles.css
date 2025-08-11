@@ -698,6 +698,14 @@ body.no-scroll { overflow: hidden; }
   padding: 20px;
 }
 
+.modal-description {
+  color: var(--muted);
+  font-size: 14px;
+  margin-bottom: 20px;
+  text-align: center;
+  line-height: 1.4;
+}
+
 .modal-gear-name {
   font-size: 20px;
   font-weight: 600;
